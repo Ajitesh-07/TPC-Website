@@ -40,9 +40,11 @@ export interface SidebarItem {
 export const SIDEBAR_ITEMS: SidebarItem[] = [
   { label: "Dashboard", icon: "dashboard", href: "/student-dashboard" },
   { label: "Drives", icon: "work", href: "/drive-catalogue" },
-  { label: "Profiles", icon: "person_search", href: "/my-profile" },
+  // Admin/coordinator view — the directory of all students. A student reaches
+  // their own profile via the avatar in the page header, not from here.
+  { label: "Profiles", icon: "person_search", href: "/student-profiles" },
   { label: "Applications", icon: "assignment_turned_in", href: "#" },
-  { label: "Interviews", icon: "event", href: "/calendar" },
+  { label: "Calendar", icon: "event", href: "/calendar" },
   { label: "Coordinator DB", icon: "admin_panel_settings", href: "/coordinator-dashboard" },
   { label: "Settings", icon: "settings", href: "#" },
 ];
