@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/components/ui/Button";
+import IconTile from "@/components/ui/IconTile";
 import { CONTACT_DETAILS } from "@/data/navigation";
 
 const INPUT_CLASS =
@@ -28,11 +30,7 @@ const ContactUs = () => {
           <div className="flex flex-col gap-5">
             {CONTACT_DETAILS.map((item) => (
               <div key={item.label} className="flex items-start gap-4">
-                <div className="w-11 h-11 rounded-lg bg-primary-fixed flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-primary">
-                    {item.icon}
-                  </span>
-                </div>
+                <IconTile icon={item.icon} size="sm" />
                 <div>
                   <div className="text-label-sm font-label-sm text-text-secondary uppercase tracking-wider mb-1">
                     {item.label}
@@ -110,12 +108,9 @@ const ContactUs = () => {
                 placeholder="How can we help?"
               />
             </div>
-            <button
-              type="submit"
-              className="btn-primary text-on-primary px-6 py-3.5 rounded-lg text-title-md font-title-md self-start hover:shadow-md transition-shadow duration-200"
-            >
+            <Button type="submit" className="self-start">
               Send Message
-            </button>
+            </Button>
           </form>
         </div>
       </div>

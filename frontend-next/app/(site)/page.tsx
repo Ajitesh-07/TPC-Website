@@ -13,10 +13,10 @@ export default function HomePage() {
   return (
     <>
       <Hero />
+      <TrustedLeaders />
       <AboutTPC />
       <PlacementHighlights />
       <PastRecruiters />
-      <TrustedLeaders />
       <HeadMessage />
       <Announcements />
       <PublicDownloads />
