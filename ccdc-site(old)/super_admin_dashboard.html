@@ -1,0 +1,446 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>IIT Patna CCDC - Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#a7c8fd",
+                        "on-primary-container": "#7596c8",
+                        "on-primary-fixed": "#001c3b",
+                        "on-primary-fixed-variant": "#254875",
+                        "on-error-container": "#93000a",
+                        "tertiary-container": "#182f43",
+                        "secondary-fixed-dim": "#e9c176",
+                        "on-secondary-container": "#785a1a",
+                        "surface": "#f7f9fb",
+                        "tertiary-fixed-dim": "#b2c9e2",
+                        "gold-muted": "#B8860B",
+                        "secondary-container": "#fed488",
+                        "on-secondary-fixed-variant": "#5d4201",
+                        "on-error": "#ffffff",
+                        "gold-leaf": "#D4AF37",
+                        "surface-dim": "#d8dadc",
+                        "text-secondary": "#475569",
+                        "inverse-primary": "#a7c8fd",
+                        "navy-vibrant": "#003366",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e0e3e5",
+                        "background": "#f7f9fb",
+                        "outline-variant": "#c3c6d0",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#3e5f8e",
+                        "primary-container": "#002d59",
+                        "surface-bright": "#f7f9fb",
+                        "on-surface": "#191c1e",
+                        "on-tertiary-fixed-variant": "#33495e",
+                        "error": "#ba1a1a",
+                        "outline": "#737780",
+                        "on-secondary": "#ffffff",
+                        "surface-border": "#E2E8F0",
+                        "primary": "#001835",
+                        "tertiary-fixed": "#cee5ff",
+                        "inverse-surface": "#2d3133",
+                        "status-success": "#10B981",
+                        "surface-container-high": "#e6e8ea",
+                        "text-primary": "#0F172A",
+                        "status-warning": "#F59E0B",
+                        "secondary": "#775a19",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed": "#261900",
+                        "on-surface-variant": "#43474f",
+                        "on-tertiary-container": "#8097af",
+                        "primary-fixed": "#d5e3ff",
+                        "surface-container-low": "#f2f4f6",
+                        "tertiary": "#011a2d",
+                        "inverse-on-surface": "#eff1f3",
+                        "status-error": "#EF4444",
+                        "on-background": "#191c1e",
+                        "surface-container": "#eceef0",
+                        "on-tertiary-fixed": "#041d30",
+                        "secondary-fixed": "#ffdea5",
+                        "navy-deep": "#001F3D",
+                        "surface-container-highest": "#e0e3e5"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter-desktop": "24px",
+                        "container-max": "1440px",
+                        "margin-mobile": "20px",
+                        "gutter-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "title-md": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "title-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "title-md": ["16px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "title-lg": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
+        
+        /* Ambient Shadows & Elevaton */
+        .elevation-1 { box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+        .elevation-2 { box-shadow: 0 12px 32px rgba(0,0,0,0.08); }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #c3c6d0; }
+    </style>
+<style>.sidebar-collapsed { width: 80px !important; }.sidebar-collapsed .nav-text { display: none; }.sidebar-collapsed .px-4 { padding-left: 1rem; padding-right: 1rem; }.sidebar-collapsed .justify-center { justify-content: center; }.sidebar-collapsed h1, .sidebar-collapsed p.text-label-md { display: none; }.sidebar-collapsed #toggle-icon { transform: rotate(180deg); }.main-content-collapsed { margin-left: 80px !important; }</style></head>
+<body class="bg-surface text-on-surface flex min-h-screen">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full flex flex-col p-4 z-40 bg-surface-container-low border-r border-surface-border text-on-surface shadow-sm w-[260px] hidden md:flex transition-all duration-300 ease-in-out sidebar-container">
+<div class="mb-8 px-4 pt-4"><h1 class="text-title-lg font-title-lg font-bold text-primary mb-1">IITP</h1><p class="text-label-md font-label-md text-text-secondary">CDC</p></div>
+<div class="mb-6 px-4">
+<button class="w-full bg-gradient-to-b from-primary to-navy-deep border-t border-white/10 text-on-primary py-2 px-4 rounded-lg flex items-center justify-center gap-2 hover:shadow-lg transition-all duration-200 elevation-1">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span class="text-label-md font-label-md">New Application</span>
+</button>
+</div>
+<ul class="flex-1 space-y-2"><li class=""><a class="flex items-center gap-3 bg-primary/10 text-primary rounded-xl px-4 py-3 transition-all" href="#"><span class="material-symbols-outlined">dashboard</span><span class="text-label-md font-label-md nav-text">Dashboard</span></a></li><li class=""><a class="flex items-center gap-3 text-text-secondary px-4 py-3 hover:bg-surface-container hover:text-primary transition-all rounded-xl" href="#"><span class="material-symbols-outlined">work</span><span class="text-label-md font-label-md nav-text">Drives</span></a></li><li class=""><a class="flex items-center gap-3 text-text-secondary px-4 py-3 hover:bg-surface-container hover:text-primary transition-all rounded-xl" href="#"><span class="material-symbols-outlined">person_search</span><span class="text-label-md font-label-md nav-text">Profiles</span></a></li><li class=""><a class="flex items-center gap-3 text-text-secondary px-4 py-3 hover:bg-surface-container hover:text-primary transition-all rounded-xl" href="#"><span class="material-symbols-outlined">assignment_turned_in</span><span class="text-label-md font-label-md nav-text">Applications</span></a></li><li class=""><a class="flex items-center gap-3 text-text-secondary px-4 py-3 hover:bg-surface-container hover:text-primary transition-all rounded-xl" href="#"><span class="material-symbols-outlined">event</span><span class="text-label-md font-label-md nav-text">Interviews</span></a></li><li class=""><a class="flex items-center gap-3 text-text-secondary px-4 py-3 hover:bg-surface-container hover:text-primary transition-all rounded-xl" href="#"><span class="material-symbols-outlined">settings</span><span class="text-label-md font-label-md nav-text">Settings</span></a></li></ul>
+<div class="mt-auto border-t border-white/10 pt-4"><ul class="space-y-2"><li class=""><a class="flex items-center gap-3 text-text-secondary px-4 py-2 hover:bg-surface-container hover:text-primary transition-all rounded-xl" href="#"><span class="material-symbols-outlined text-[18px]">logout</span><span class="text-label-md font-label-md nav-text">Logout</span></a></li><li class=""><a class="flex items-center gap-3 text-text-secondary px-4 py-2 hover:bg-surface-container hover:text-primary transition-all rounded-xl" href="#"><span class="material-symbols-outlined text-[18px]">help</span><span class="text-label-md font-label-md nav-text">Support</span></a></li></ul><button id="toggle-sidebar" class="w-full mt-4 flex items-center gap-3 text-text-secondary px-4 py-2 hover:bg-surface-container hover:text-primary transition-all rounded-xl"><span class="material-symbols-outlined transition-transform duration-300" id="toggle-icon">menu_open</span><span class="text-label-md font-label-md nav-text">Collapse</span></button></div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-[260px] flex flex-col min-h-screen max-w-container-max mx-auto w-full transition-all duration-300 ease-in-out main-content">
+<!-- TopAppBar (Mobile Only - Simplified) -->
+<header class="md:hidden flex justify-between items-center w-full px-gutter-mobile h-16 bg-surface shadow-sm sticky top-0 z-30">
+<h1 class="text-title-lg font-title-lg font-bold text-navy-vibrant">IIT Patna CCDC</h1>
+<button class="text-text-secondary"><span class="material-symbols-outlined">menu</span></button>
+</header>
+<div class="flex-1 p-gutter-mobile md:p-gutter-desktop space-y-8">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div>
+<h2 class="text-headline-lg font-headline-lg text-primary">Global Dashboard</h2>
+<p class="text-body-md font-body-md text-text-secondary mt-1">Admin &amp; Credit Management Overview</p>
+</div>
+<div class="flex gap-3">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-[18px]">search</span>
+<input class="pl-9 pr-4 py-2 rounded-lg border border-surface-border bg-surface-container-lowest text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all w-full md:w-64" placeholder="Search directory..." type="text">
+</div>
+<button class="bg-surface-container-lowest border border-surface-border p-2 rounded-lg text-text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+<!-- Quick Stats (Spans full width on mobile, 8 cols on desktop) -->
+<div class="md:col-span-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+<!-- Stat Card 1 -->
+<div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-border elevation-1 flex flex-col justify-between h-32 relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 w-16 h-16 bg-primary-container/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+<div class="flex justify-between items-start z-10">
+<span class="text-label-md font-label-md text-text-secondary uppercase tracking-wider">Total Placements</span>
+<span class="material-symbols-outlined text-primary-fixed-dim">school</span>
+</div>
+<div class="z-10">
+<div class="text-headline-md font-headline-md text-primary">1,248</div>
+<div class="text-label-sm font-label-sm text-status-success flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[12px]">arrow_upward</span> +12% yoy
+                            </div>
+</div>
+</div>
+<!-- Stat Card 2 -->
+<div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-border elevation-1 flex flex-col justify-between h-32 relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 w-16 h-16 bg-secondary-container/10 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+<div class="flex justify-between items-start z-10">
+<span class="text-label-md font-label-md text-text-secondary uppercase tracking-wider">Active Companies</span>
+<span class="material-symbols-outlined text-secondary-fixed-dim">domain</span>
+</div>
+<div class="z-10">
+<div class="text-headline-md font-headline-md text-primary">156</div>
+<div class="text-label-sm font-label-sm text-status-success flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[12px]">arrow_upward</span> +5 new this week
+                            </div>
+</div>
+</div>
+<!-- Stat Card 3 -->
+<div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-border elevation-1 flex flex-col justify-between h-32 relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 w-16 h-16 bg-error-container/20 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+<div class="flex justify-between items-start z-10">
+<span class="text-label-md font-label-md text-text-secondary uppercase tracking-wider">Flagged Profiles</span>
+<span class="material-symbols-outlined text-status-error">flag</span>
+</div>
+<div class="z-10">
+<div class="text-headline-md font-headline-md text-primary">24</div>
+<div class="text-label-sm font-label-sm text-text-secondary flex items-center gap-1 mt-1">
+                                Requires review
+                            </div>
+</div>
+</div>
+<!-- Stat Card 4 -->
+<div class="bg-surface-container-lowest rounded-xl p-4 border border-surface-border elevation-1 flex flex-col justify-between h-32 relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 w-16 h-16 bg-tertiary-fixed-dim/20 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+<div class="flex justify-between items-start z-10">
+<span class="text-label-md font-label-md text-text-secondary uppercase tracking-wider">Avg Credits</span>
+<span class="material-symbols-outlined text-tertiary-container">toll</span>
+</div>
+<div class="z-10">
+<div class="text-headline-md font-headline-md text-primary">850</div>
+<div class="text-label-sm font-label-sm text-status-warning flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[12px]">arrow_downward</span> -5% from avg
+                            </div>
+</div>
+</div>
+</div>
+<!-- Credit Management Widget (Spans 4 cols on desktop) -->
+<div class="md:col-span-4 bg-primary text-on-primary rounded-xl p-6 shadow-lg flex flex-col relative overflow-hidden">
+<!-- Subtle background pattern -->
+<div class="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+<div class="relative z-10 flex justify-between items-center mb-6">
+<h3 class="text-title-md font-title-md font-semibold">Credit Management</h3>
+<button class="text-on-primary/70 hover:text-white transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div class="relative z-10 flex-1 flex flex-col justify-center">
+<div class="bg-white/10 rounded-lg p-4 backdrop-blur-sm border border-white/5 mb-4">
+<label class="text-label-sm font-label-sm text-on-primary/70 block mb-1">Quick Adjust Student Credits</label>
+<div class="flex gap-2 mt-2">
+<input class="w-full bg-white/5 border border-white/20 rounded px-3 py-2 text-body-md text-white placeholder-white/40 focus:border-gold-leaf focus:ring-1 focus:ring-gold-leaf outline-none" placeholder="Roll No." type="text">
+<input class="w-20 bg-white/5 border border-white/20 rounded px-3 py-2 text-body-md text-white placeholder-white/40 focus:border-gold-leaf focus:ring-1 focus:ring-gold-leaf outline-none" placeholder="+/-" type="number">
+</div>
+<button class="w-full mt-3 bg-gold-leaf text-on-secondary-fixed-variant py-2 rounded font-title-md text-sm hover:bg-secondary-container transition-colors shadow-sm">
+                                Apply Adjustment
+                            </button>
+</div>
+<a class="text-label-sm font-label-sm text-gold-leaf hover:underline flex items-center gap-1 self-start mt-auto" href="#">
+                            View Full Audit Log <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Placements Analysis Chart Area (Spans 8 cols) -->
+<div class="md:col-span-8 bg-surface-container-lowest rounded-xl border border-surface-border elevation-1 p-6 flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-title-md font-title-md text-primary">Placement Trajectory</h3>
+<select class="text-label-md font-label-md bg-surface border border-surface-border rounded px-2 py-1 text-text-secondary outline-none focus:border-primary">
+<option>2023-2024</option>
+<option>2022-2023</option>
+</select>
+</div>
+<!-- Placeholder for Chart -->
+<div class="flex-1 bg-surface-container-low rounded-lg border border-dashed border-outline-variant flex items-center justify-center min-h-[250px] relative">
+<!-- Decorative Chart Placeholder -->
+<div class="absolute bottom-0 left-0 w-full h-[80%] flex items-end justify-between px-4 pb-4 gap-2 opacity-40">
+<div class="w-1/12 bg-primary-fixed-dim rounded-t h-[40%]"></div>
+<div class="w-1/12 bg-primary-fixed-dim rounded-t h-[55%]"></div>
+<div class="w-1/12 bg-primary-fixed-dim rounded-t h-[45%]"></div>
+<div class="w-1/12 bg-primary-fixed-dim rounded-t h-[70%]"></div>
+<div class="w-1/12 bg-primary-fixed-dim rounded-t h-[60%]"></div>
+<div class="w-1/12 bg-primary-fixed-dim rounded-t h-[85%]"></div>
+<div class="w-1/12 bg-primary-fixed-dim rounded-t h-[75%]"></div>
+<div class="w-1/12 bg-primary-fixed-dim rounded-t h-[95%]"></div>
+</div>
+<span class="text-text-secondary text-body-md z-10 flex items-center gap-2">
+<span class="material-symbols-outlined">insights</span>
+                            Interactive Chart Component
+                        </span>
+</div>
+</div>
+<!-- Role Management List (Spans 4 cols) -->
+<div class="md:col-span-4 bg-surface-container-lowest rounded-xl border border-surface-border elevation-1 flex flex-col overflow-hidden">
+<div class="p-4 border-b border-surface-border flex justify-between items-center bg-surface-bright">
+<h3 class="text-title-md font-title-md text-primary">Recent Role Changes</h3>
+<button class="text-primary hover:bg-surface-container rounded-full p-1 transition-colors">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-2">
+<!-- List Item -->
+<div class="flex items-center gap-3 p-3 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center text-label-md font-bold">AK</div>
+<div class="flex-1 min-w-0">
+<p class="text-body-md font-body-md text-primary truncate">Amit Kumar</p>
+<p class="text-label-sm font-label-sm text-text-secondary truncate">Promoted to Coordinator</p>
+</div>
+<span class="text-label-sm text-text-secondary">2h ago</span>
+</div>
+<!-- List Item -->
+<div class="flex items-center gap-3 p-3 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-fixed-variant flex items-center justify-center text-label-md font-bold">SR</div>
+<div class="flex-1 min-w-0">
+<p class="text-body-md font-body-md text-primary truncate">Sneha Reddy</p>
+<p class="text-label-sm font-label-sm text-text-secondary truncate">Access Revoked</p>
+</div>
+<span class="text-label-sm text-text-secondary">5h ago</span>
+</div>
+<!-- List Item -->
+<div class="flex items-center gap-3 p-3 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-text-secondary flex items-center justify-center text-label-md font-bold">VP</div>
+<div class="flex-1 min-w-0">
+<p class="text-body-md font-body-md text-primary truncate">Vikram Patel</p>
+<p class="text-label-sm font-label-sm text-text-secondary truncate">Added as Volunteer</p>
+</div>
+<span class="text-label-sm text-text-secondary">1d ago</span>
+</div>
+</div>
+<div class="p-3 border-t border-surface-border text-center bg-surface-bright">
+<a class="text-label-sm font-label-sm text-primary hover:underline" href="#">View All Roles</a>
+</div>
+</div>
+<!-- High-Density Directory Table (Spans full 12 cols) -->
+<div class="md:col-span-12 bg-surface-container-lowest rounded-xl border border-surface-border elevation-1 overflow-hidden mt-4">
+<div class="p-5 border-b border-surface-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface-bright">
+<div>
+<h3 class="text-title-md font-title-md text-primary">Student Directory</h3>
+<p class="text-label-md font-label-md text-text-secondary">Manage and view student placement statuses.</p>
+</div>
+<div class="flex gap-2 w-full sm:w-auto">
+<button class="flex items-center gap-1 text-label-md font-label-md px-3 py-1.5 border border-surface-border rounded bg-white hover:bg-surface-container-low transition-colors text-text-secondary">
+<span class="material-symbols-outlined text-[16px]">download</span> Export
+                            </button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container text-label-sm font-label-sm text-text-secondary uppercase tracking-wider">
+<th class="py-3 px-4 font-semibold border-b border-surface-border w-12"></th>
+<th class="py-3 px-4 font-semibold border-b border-surface-border">Roll No / Name</th>
+<th class="py-3 px-4 font-semibold border-b border-surface-border">Department</th>
+<th class="py-3 px-4 font-semibold border-b border-surface-border">Credits</th>
+<th class="py-3 px-4 font-semibold border-b border-surface-border">Status</th>
+<th class="py-3 px-4 font-semibold border-b border-surface-border text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="text-body-md font-body-md text-on-surface">
+<!-- Row 1 -->
+<tr class="border-b border-surface-border hover:bg-surface-container-low transition-colors">
+<td class="py-2 px-4">
+<div class="w-8 h-8 rounded bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-bold text-xs">21CS</div>
+</td>
+<td class="py-2 px-4">
+<div class="font-medium text-primary">2101CS01</div>
+<div class="text-label-sm text-text-secondary">Aarav Sharma</div>
+</td>
+<td class="py-2 px-4 text-text-secondary">Computer Science</td>
+<td class="py-2 px-4 font-mono text-sm">1,200</td>
+<td class="py-2 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-status-success/10 text-status-success border border-status-success/20">
+                                            Placed
+                                        </span>
+</td>
+<td class="py-2 px-4 text-right">
+<button class="text-text-secondary hover:text-primary p-1"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+<button class="text-text-secondary hover:text-primary p-1"><span class="material-symbols-outlined text-[18px]">more_vert</span></button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-surface-border hover:bg-surface-container-low transition-colors bg-neutral-50/50">
+<td class="py-2 px-4">
+<div class="w-8 h-8 rounded bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center font-bold text-xs">21EE</div>
+</td>
+<td class="py-2 px-4">
+<div class="font-medium text-primary">2101EE45</div>
+<div class="text-label-sm text-text-secondary">Diya Patel</div>
+</td>
+<td class="py-2 px-4 text-text-secondary">Electrical Eng.</td>
+<td class="py-2 px-4 font-mono text-sm">850</td>
+<td class="py-2 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-status-warning/10 text-status-warning border border-status-warning/20">
+                                            Eligible
+                                        </span>
+</td>
+<td class="py-2 px-4 text-right">
+<button class="text-text-secondary hover:text-primary p-1"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+<button class="text-text-secondary hover:text-primary p-1"><span class="material-symbols-outlined text-[18px]">more_vert</span></button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-surface-border hover:bg-surface-container-low transition-colors">
+<td class="py-2 px-4">
+<div class="w-8 h-8 rounded bg-error-container text-on-error-container flex items-center justify-center font-bold text-xs">21ME</div>
+</td>
+<td class="py-2 px-4">
+<div class="font-medium text-primary">2101ME12</div>
+<div class="text-label-sm text-text-secondary">Rohan Gupta</div>
+</td>
+<td class="py-2 px-4 text-text-secondary">Mechanical Eng.</td>
+<td class="py-2 px-4 font-mono text-sm text-status-error font-medium">-150</td>
+<td class="py-2 px-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-error-container text-on-error-container border border-error/20">
+                                            Blocked
+                                        </span>
+</td>
+<td class="py-2 px-4 text-right">
+<button class="text-text-secondary hover:text-primary p-1"><span class="material-symbols-outlined text-[18px]">edit</span></button>
+<button class="text-text-secondary hover:text-primary p-1"><span class="material-symbols-outlined text-[18px]">more_vert</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-3 bg-surface-bright flex justify-between items-center text-label-sm text-text-secondary">
+<span class="">Showing 1-3 of 842 students</span>
+<div class="flex gap-1">
+<button class="p-1 hover:bg-surface-variant rounded disabled:opacity-50" disabled=""><span class="material-symbols-outlined text-[16px]">chevron_left</span></button>
+<button class="p-1 hover:bg-surface-variant rounded"><span class="material-symbols-outlined text-[16px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Component -->
+<footer class="w-full py-12 px-gutter-desktop border-t border-surface-border bg-surface-container-lowest dark:bg-navy-deep mt-auto">
+<div class="max-w-container-max mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="text-title-md font-title-md text-navy-vibrant dark:text-primary-fixed-dim">
+                    IIT Patna CCDC
+                </div>
+<div class="flex flex-wrap justify-center gap-6">
+<a class="text-label-sm font-label-sm text-text-secondary dark:text-on-primary-container hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Privacy Policy</a>
+<a class="text-label-sm font-label-sm text-text-secondary dark:text-on-primary-container hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Terms of Service</a>
+<a class="text-label-sm font-label-sm text-text-secondary dark:text-on-primary-container hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Quick Links</a>
+<a class="text-label-sm font-label-sm text-text-secondary dark:text-on-primary-container hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Contact Us</a>
+</div>
+<div class="text-body-md font-body-md text-text-secondary dark:text-on-primary-container">
+                    © 2024 IIT Patna Career Development Centre. All Rights Reserved.
+                </div>
+</div>
+</footer>
+</main>
+
+
+<script>const toggleBtn = document.getElementById('toggle-sidebar'); const sidebar = document.querySelector('.sidebar-container'); const mainContent = document.querySelector('.main-content'); toggleBtn.addEventListener('click', () => { sidebar.classList.toggle('sidebar-collapsed'); mainContent.classList.toggle('main-content-collapsed'); });</script></body></html>

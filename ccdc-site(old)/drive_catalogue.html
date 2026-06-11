@@ -1,0 +1,279 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Drive Catalogue - IIT Patna CCDC</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#a7c8fd",
+                        "on-primary-container": "#7596c8",
+                        "on-primary-fixed": "#001c3b",
+                        "on-primary-fixed-variant": "#254875",
+                        "on-error-container": "#93000a",
+                        "tertiary-container": "#182f43",
+                        "secondary-fixed-dim": "#e9c176",
+                        "on-secondary-container": "#785a1a",
+                        "surface": "#f7f9fb",
+                        "tertiary-fixed-dim": "#b2c9e2",
+                        "gold-muted": "#B8860B",
+                        "secondary-container": "#fed488",
+                        "on-secondary-fixed-variant": "#5d4201",
+                        "on-error": "#ffffff",
+                        "gold-leaf": "#D4AF37",
+                        "surface-dim": "#d8dadc",
+                        "text-secondary": "#475569",
+                        "inverse-primary": "#a7c8fd",
+                        "navy-vibrant": "#003366",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e0e3e5",
+                        "background": "#f7f9fb",
+                        "outline-variant": "#c3c6d0",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#3e5f8e",
+                        "primary-container": "#002d59",
+                        "surface-bright": "#f7f9fb",
+                        "on-surface": "#191c1e",
+                        "on-tertiary-fixed-variant": "#33495e",
+                        "error": "#ba1a1a",
+                        "outline": "#737780",
+                        "on-secondary": "#ffffff",
+                        "surface-border": "#E2E8F0",
+                        "primary": "#001835",
+                        "tertiary-fixed": "#cee5ff",
+                        "inverse-surface": "#2d3133",
+                        "status-success": "#10B981",
+                        "surface-container-high": "#e6e8ea",
+                        "text-primary": "#0F172A",
+                        "status-warning": "#F59E0B",
+                        "secondary": "#775a19",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed": "#261900",
+                        "on-surface-variant": "#43474f",
+                        "on-tertiary-container": "#8097af",
+                        "primary-fixed": "#d5e3ff",
+                        "surface-container-low": "#f2f4f6",
+                        "tertiary": "#011a2d",
+                        "inverse-on-surface": "#eff1f3",
+                        "status-error": "#EF4444",
+                        "on-background": "#191c1e",
+                        "surface-container": "#eceef0",
+                        "on-tertiary-fixed": "#041d30",
+                        "secondary-fixed": "#ffdea5",
+                        "navy-deep": "#001F3D",
+                        "surface-container-highest": "#e0e3e5"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter-desktop": "24px",
+                        "container-max": "1440px",
+                        "margin-mobile": "20px",
+                        "gutter-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "title-md": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "title-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "title-md": ["16px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "title-lg": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        .soft-shadow { box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+        .hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+            border-color: #003366;
+        }
+        .btn-gradient {
+            background: linear-gradient(180deg, #001835 0%, #001F3D 100%);
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+<style>#sidebar { width: 260px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); } #sidebar.collapsed { width: 80px; } #sidebar.collapsed .nav-label, #sidebar.collapsed .mb-8 p, #sidebar.collapsed .mb-8 h1 { display: none; } #sidebar.collapsed .mb-8 { text-align: center; padding: 0; } #sidebar.collapsed .sidebar-link { justify-content: center; padding: 12px 0; } #sidebar.collapsed #collapse-btn { justify-content: center; } #sidebar.collapsed #collapse-btn span:first-child { transform: rotate(180deg); } #main-content { margin-left: 260px; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); } #sidebar.collapsed ~ #main-content { margin-left: 80px; }</style></head>
+<body class="bg-background text-on-background min-h-screen flex">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col dark:bg-navy-deep fixed left-0 top-0 h-full w-[240px] p-4 z-40 shadow-md bg-surface-container-low" id="sidebar">
+<div class="mb-8 px-4">
+<h1 class="text-title-lg font-title-lg font-bold text-primary">IIT Patna Portal</h1>
+<p class="text-label-md font-label-md mt-1 text-text-secondary">Career Development Centre</p>
+</div>
+<button class="w-full btn-gradient text-on-primary rounded-xl py-3 px-4 mb-6 text-label-md font-label-md shadow-sm hover:opacity-90 transition-opacity">
+            New Application
+        </button>
+<ul class="flex-1 space-y-2"><li class=""><a class="sidebar-link group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 bg-primary/5 text-primary active-link" href="#"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span><span class="nav-label text-label-md font-semibold">Dashboard</span></a></li><li class=""><a class="sidebar-link group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 text-text-secondary hover:bg-surface-variant" href="#"><span class="material-symbols-outlined">work</span><span class="nav-label text-label-md">Drives</span></a></li><li class=""><a class="sidebar-link group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 text-text-secondary hover:bg-surface-variant" href="#"><span class="material-symbols-outlined">person_search</span><span class="nav-label text-label-md">Profiles</span></a></li><li class=""><a class="sidebar-link group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 text-text-secondary hover:bg-surface-variant" href="#"><span class="material-symbols-outlined">assignment_turned_in</span><span class="nav-label text-label-md">Applications</span></a></li><li class=""><a class="sidebar-link group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 text-text-secondary hover:bg-surface-variant" href="#"><span class="material-symbols-outlined">event</span><span class="nav-label text-label-md">Interviews</span></a></li><li class=""><a class="sidebar-link group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 text-text-secondary hover:bg-surface-variant" href="#"><span class="material-symbols-outlined">settings</span><span class="nav-label text-label-md">Settings</span></a></li></ul>
+<div class="mt-auto pt-6 border-t border-primary-container"><ul class="space-y-2"><li class=""><a class="sidebar-link flex items-center gap-4 text-text-secondary px-4 py-3 hover:bg-surface-variant transition-all duration-200 rounded-xl" href="#"><span class="material-symbols-outlined">logout</span><span class="nav-label text-label-md">Logout</span></a></li><li class=""><a class="sidebar-link flex items-center gap-4 text-text-secondary px-4 py-3 hover:bg-surface-variant transition-all duration-200 rounded-xl" href="#"><span class="material-symbols-outlined">help</span><span class="nav-label text-label-md">Support</span></a></li></ul><button id="collapse-btn" class="w-full flex items-center gap-4 px-4 py-3 mt-4 text-text-secondary hover:bg-surface-variant rounded-xl transition-all"><span class="material-symbols-outlined">keyboard_double_arrow_left</span><span class="nav-label text-label-md">Collapse</span></button></div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-[240px] flex flex-col min-h-screen" id="main-content">
+<!-- Header Section -->
+<header class="bg-surface sticky top-0 z-30 border-b border-surface-border px-gutter-desktop py-6">
+<div class="max-w-container-max mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+<div>
+<h2 class="text-headline-md font-headline-md text-text-primary">Drive Catalogue</h2>
+<p class="text-body-md font-body-md text-text-secondary mt-1">Explore and apply for upcoming placement and internship opportunities.</p>
+</div>
+<div class="flex items-center gap-4 w-full sm:w-auto">
+<div class="relative w-full sm:w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-surface-border rounded-xl text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all" placeholder="Search companies or roles..." type="text">
+</div>
+<button class="p-2 bg-surface-container border border-surface-border rounded-xl text-on-surface-variant hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="flex-1 px-gutter-desktop py-8 max-w-container-max mx-auto w-full">
+<!-- Controls (Tabs & Sort) -->
+<div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+<div class="bg-surface-container-low p-1 rounded-xl inline-flex w-full sm:w-auto">
+<button class="flex-1 sm:flex-none px-6 py-2 bg-surface shadow-sm rounded-lg text-title-md font-title-md text-primary transition-all">
+                        Upcoming
+                    </button>
+<button class="flex-1 sm:flex-none px-6 py-2 rounded-lg text-title-md font-title-md text-text-secondary hover:text-on-surface transition-all">
+                        Ongoing
+                    </button>
+</div>
+<div class="flex items-center gap-2 text-body-md font-body-md text-text-secondary w-full sm:w-auto justify-end">
+<span class="">Sort by:</span>
+<select class="bg-transparent border-none text-primary font-medium focus:ring-0 cursor-pointer">
+<option>Deadline (Asc)</option>
+<option>CTC (Desc)</option>
+<option>Company (A-Z)</option>
+</select>
+</div>
+</div>
+<!-- Drives Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+<!-- Drive Card 1 (Eligible) -->
+<article class="bg-surface rounded-xl border border-surface-border soft-shadow hover-lift p-6 flex flex-col relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary-fixed-dim opacity-10 rounded-bl-full -z-10"></div>
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-surface-container-highest rounded-lg flex items-center justify-center text-title-lg font-bold text-navy-vibrant">
+                                G
+                            </div>
+<div>
+<h3 class="text-title-lg font-title-lg text-text-primary">Google</h3>
+<p class="text-label-md font-label-md text-text-secondary">Software Engineer (SDE I)</p>
+</div>
+</div>
+<span class="inline-flex items-center gap-1 bg-status-success/10 text-status-success px-2 py-1 rounded-md text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                            Eligible
+                        </span>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div class="bg-surface-container-low p-3 rounded-lg">
+<span class="block text-label-sm font-label-sm text-text-secondary mb-1">CTC / Stipend</span>
+<span class="text-title-md font-title-md text-on-surface">₹ 32.5 LPA</span>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg">
+<span class="block text-label-sm font-label-sm text-text-secondary mb-1">Deadline</span>
+<span class="text-title-md font-title-md text-status-warning">Oct 24, 11:59 PM</span>
+</div>
+</div>
+<div class="flex gap-2 mb-6">
+<span class="bg-surface-variant text-on-surface-variant px-2 py-1 rounded-md text-label-sm font-label-sm">B.Tech</span>
+<span class="bg-surface-variant text-on-surface-variant px-2 py-1 rounded-md text-label-sm font-label-sm">CSE, MNC</span>
+</div>
+<div class="mt-auto flex items-center justify-between pt-4 border-t border-surface-border">
+<a class="text-label-md font-label-md text-primary hover:text-navy-vibrant flex items-center gap-1 transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">description</span>
+                            View JD
+                        </a>
+<button class="btn-gradient text-on-primary px-4 py-2 rounded-lg text-label-md font-label-md shadow-sm hover:opacity-90 transition-opacity">
+                            Apply Now
+                        </button>
+</div>
+</article>
+<!-- Drive Card 2 (Ineligible) -->
+<article class="bg-surface rounded-xl border border-surface-border soft-shadow hover-lift p-6 flex flex-col relative overflow-hidden opacity-80">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-surface-container-highest rounded-lg flex items-center justify-center text-title-lg font-bold text-navy-vibrant">
+                                MS
+                            </div>
+<div>
+<h3 class="text-title-lg font-title-lg text-text-primary">Morgan Stanley</h3>
+<p class="text-label-md font-label-md text-text-secondary">Technology Analyst</p>
+</div>
+</div>
+<span class="inline-flex items-center gap-1 bg-status-error/10 text-status-error px-2 py-1 rounded-md text-label-sm font-label-sm">
+<span class="material-symbols-outlined text-[14px]">cancel</span>
+                            Ineligible
+                        </span>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-4">
+<div class="bg-surface-container-low p-3 rounded-lg">
+<span class="block text-label-sm font-label-sm text-text-secondary mb-1">CTC / Stipend</span>
+<span class="text-title-md font-title-md text-on-surface">₹ 28.0 LPA</span>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg">
+<span class="block text-label-sm font-label-sm text-text-secondary mb-1">Deadline</span>
+<span class="text-title-md font-title-md text-on-surface">Oct 26, 05:00 PM</span>
+</div>
+</div>
+<div class="bg-error-container text-on-error-container p-2 rounded-lg text-label-md font-label-md mb-6 flex items-start gap-2">
+<span class="material-symbols-outlined text-[16px] mt-0.5">info</span>
+<span class="">CPI Criteria not met (Required: 8.5)</span>
+</div>
+<div class="mt-auto flex items-center justify-between pt-4 border-t border-surface-border">
+<a class="text-label-md font-label-md text-primary hover:text-navy-vibrant flex items-center gap-1 transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">description</span>
+                            View JD
+                        </a>
+<button class="bg-surface-container-highest text-text-secondary px-4 py-2 rounded-lg text-label-md font-label-md cursor-not-allowed">
+                            Apply Locked
+                        </button>
+</div>
+</article>
+</div>
+</div>
+</main>
+
+
+<script>const btn = document.getElementById('collapse-btn'); const sidebar = document.getElementById('sidebar'); btn.addEventListener('click', () => { sidebar.classList.toggle('collapsed'); });</script></body></html>

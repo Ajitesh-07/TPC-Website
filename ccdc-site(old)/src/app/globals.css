@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Hanken Grotesk', sans-serif;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.04);
+  }
+  .hero-gradient {
+    background: linear-gradient(135deg, theme('colors.primary') 0%, theme('colors.navy-vibrant') 100%);
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .input-glow:focus-within {
+    box-shadow: 0 0 0 2px rgba(0, 45, 89, 0.1);
+  }
+  .animate-fadeIn { animation: fadeIn 0.3s ease-in-out; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .gradient-text {
+    background: linear-gradient(135deg, #001835 0%, #003366 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, #001835 0%, #001F3D 100%);
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .btn-gradient {
+    background: linear-gradient(135deg, #001835 0%, #003366 100%);
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .elevation-1 { box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+  .elevation-2 { box-shadow: 0 12px 32px rgba(0,0,0,0.08); }
+  .soft-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04); }
+  .hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .hover-lift:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08); }
+}
+
+@layer utilities {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.outline-variant') transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: theme('colors.outline-variant');
+    border-radius: 9999px;
+  }
+}
+
+@layer utilities {
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}

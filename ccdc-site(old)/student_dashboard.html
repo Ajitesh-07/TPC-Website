@@ -1,0 +1,445 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Student Dashboard - IIT Patna CCDC</title>
+<!-- Fonts & Icons -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary-fixed-dim": "#a7c8fd",
+                      "on-primary-container": "#7596c8",
+                      "on-primary-fixed": "#001c3b",
+                      "on-primary-fixed-variant": "#254875",
+                      "on-error-container": "#93000a",
+                      "tertiary-container": "#182f43",
+                      "secondary-fixed-dim": "#e9c176",
+                      "on-secondary-container": "#785a1a",
+                      "surface": "#f7f9fb",
+                      "tertiary-fixed-dim": "#b2c9e2",
+                      "gold-muted": "#B8860B",
+                      "secondary-container": "#fed488",
+                      "on-secondary-fixed-variant": "#5d4201",
+                      "on-error": "#ffffff",
+                      "gold-leaf": "#D4AF37",
+                      "surface-dim": "#d8dadc",
+                      "text-secondary": "#475569",
+                      "inverse-primary": "#a7c8fd",
+                      "navy-vibrant": "#003366",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-variant": "#e0e3e5",
+                      "background": "#f7f9fb",
+                      "outline-variant": "#c3c6d0",
+                      "on-primary": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "surface-tint": "#3e5f8e",
+                      "primary-container": "#002d59",
+                      "surface-bright": "#f7f9fb",
+                      "on-surface": "#191c1e",
+                      "on-tertiary-fixed-variant": "#33495e",
+                      "error": "#ba1a1a",
+                      "outline": "#737780",
+                      "on-secondary": "#ffffff",
+                      "surface-border": "#E2E8F0",
+                      "primary": "#001835",
+                      "tertiary-fixed": "#cee5ff",
+                      "inverse-surface": "#2d3133",
+                      "status-success": "#10B981",
+                      "surface-container-high": "#e6e8ea",
+                      "text-primary": "#0F172A",
+                      "status-warning": "#F59E0B",
+                      "secondary": "#775a19",
+                      "error-container": "#ffdad6",
+                      "on-secondary-fixed": "#261900",
+                      "on-surface-variant": "#43474f",
+                      "on-tertiary-container": "#8097af",
+                      "primary-fixed": "#d5e3ff",
+                      "surface-container-low": "#f2f4f6",
+                      "tertiary": "#011a2d",
+                      "inverse-on-surface": "#eff1f3",
+                      "status-error": "#EF4444",
+                      "on-background": "#191c1e",
+                      "surface-container": "#eceef0",
+                      "on-tertiary-fixed": "#041d30",
+                      "secondary-fixed": "#ffdea5",
+                      "navy-deep": "#001F3D",
+                      "surface-container-highest": "#e0e3e5"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "gutter-desktop": "24px",
+                      "container-max": "1440px",
+                      "margin-mobile": "20px",
+                      "gutter-mobile": "16px",
+                      "margin-desktop": "40px",
+                      "unit": "4px"
+              },
+              "fontFamily": {
+                      "headline-lg-mobile": ["Hanken Grotesk"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "body-lg": ["Hanken Grotesk"],
+                      "title-md": ["Hanken Grotesk"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "display-lg": ["Hanken Grotesk"],
+                      "label-sm": ["Hanken Grotesk"],
+                      "body-md": ["Hanken Grotesk"],
+                      "label-md": ["Hanken Grotesk"],
+                      "title-lg": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--surface-border, #E2E8F0);
+        }
+        .soft-shadow {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        }
+        /* Custom Scrollbar for premium feel */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+<style>
+    nav.md\:flex {
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    main.flex-1 {
+        transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .collapsed {
+        width: 80px !important;
+    }
+    .collapsed-margin {
+        margin-left: 80px !important;
+    }
+    .collapsed .logo-text, 
+    .collapsed .text-label-md, 
+    .collapsed .text-label-sm, 
+    .collapsed .nav-text,
+    .collapsed .cta-button-text {
+        display: none !important;
+    }
+    .collapsed .nav-link {
+        justify-content: center;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    .collapsed .logo-container {
+        margin-right: 0 !important;
+    }
+</style></head>
+<body class="bg-background text-on-surface flex h-screen overflow-hidden antialiased selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- SideNavBar (Shared Component) -->
+<nav class="hidden md:flex flex-col bg-surface-container-low text-on-surface fixed left-0 top-0 h-full w-[260px] p-4 z-40 border-r border-surface-border">
+<!-- Header / Logo -->
+<div class="mb-8 px-2 flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center overflow-hidden shrink-0">
+<span class="material-symbols-outlined text-navy-vibrant text-[24px]">school</span>
+</div>
+<div class="logo-text">
+<h1 class="text-title-lg font-title-lg font-bold text-gold-leaf truncate">IIT Patna Portal</h1>
+<p class="text-label-sm font-label-sm text-on-primary-fixed-variant uppercase tracking-wider truncate">Career Development Centre</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 space-y-1 overflow-y-auto pr-2">
+<a class="nav-link flex items-center gap-3 bg-primary/10 text-primary rounded-xl px-4 py-3 transition-all" href="#">
+    <span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+    <span class="text-label-md font-label-md nav-text">Dashboard</span>
+</a>
+<a class="nav-link flex items-center gap-3 text-on-surface-variant px-4 py-3 hover:bg-surface-variant transition-all rounded-xl group" href="#">
+    <span class="material-symbols-outlined text-[24px]">work</span>
+    <span class="text-label-md font-label-md nav-text">Drives</span>
+</a>
+<a class="nav-link flex items-center gap-3 text-on-surface-variant px-4 py-3 hover:bg-surface-variant transition-all rounded-xl group" href="#">
+    <span class="material-symbols-outlined text-[24px]">person_search</span>
+    <span class="text-label-md font-label-md nav-text">Profiles</span>
+</a>
+<a class="nav-link flex items-center gap-3 text-on-surface-variant px-4 py-3 hover:bg-surface-variant transition-all rounded-xl group" href="#">
+    <span class="material-symbols-outlined text-[24px]">assignment_turned_in</span>
+    <span class="text-label-md font-label-md nav-text">Applications</span>
+</a>
+<a class="nav-link flex items-center gap-3 text-on-surface-variant px-4 py-3 hover:bg-surface-variant transition-all rounded-xl group" href="#">
+    <span class="material-symbols-outlined text-[24px]">event</span>
+    <span class="text-label-md font-label-md nav-text">Interviews</span>
+</a>
+<a class="nav-link flex items-center gap-3 text-on-surface-variant px-4 py-3 hover:bg-surface-variant transition-all rounded-xl group" href="#">
+    <span class="material-symbols-outlined text-[24px]">settings</span>
+    <span class="text-label-md font-label-md nav-text">Settings</span>
+</a></div>
+<!-- CTA & Footer Tabs -->
+<div class="mt-4 pt-4 border-t border-on-primary-fixed-variant/30 space-y-2">
+<button class="w-full bg-gradient-to-b from-secondary to-on-secondary-fixed-variant text-on-secondary py-2.5 rounded-lg text-label-md font-label-md font-bold shadow-sm hover:opacity-90 transition-opacity border-t border-white/20">
+                New Application
+            </button>
+<div class="pt-2">
+<a class="flex items-center gap-3 text-on-primary-fixed-variant px-4 py-2 hover:bg-primary-container transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary-fixed">help</span>
+<span class="text-label-md font-label-md group-hover:text-primary-fixed">Support</span>
+</a>
+<a class="flex items-center gap-3 text-on-primary-fixed-variant px-4 py-2 hover:bg-primary-container transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-error-container">logout</span>
+<span class="text-label-md font-label-md group-hover:text-error-container">Logout</span>
+</a>
+</div>
+</div>
+<div class="mt-auto pt-4">
+    <button id="toggle-sidebar" class="w-full flex items-center justify-center gap-3 text-on-surface-variant p-3 hover:bg-surface-variant rounded-xl transition-all">
+        <span class="material-symbols-outlined">menu_open</span>
+        <span class="text-label-md font-label-md nav-text">Collapse</span>
+    </button>
+</div></nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-[260px] h-full overflow-y-auto bg-background">
+<!-- Top App Bar / Header Area -->
+<header class="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-surface-border px-gutter-desktop py-4 flex justify-between items-center">
+<div>
+<h2 class="text-headline-md font-headline-md text-text-primary">Overview</h2>
+<p class="text-body-md font-body-md text-text-secondary mt-1">Manage your placement journey and track progress.</p>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 rounded-full bg-surface-container hover:bg-surface-variant flex items-center justify-center text-on-surface-variant transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full ring-2 ring-background"></span>
+</button>
+<div class="h-8 w-px bg-surface-border hidden sm:block"></div>
+<div class="flex items-center gap-3 cursor-pointer group">
+<div class="text-right hidden sm:block">
+<p class="text-label-md font-label-md text-text-primary group-hover:text-primary transition-colors">Aarav Sharma</p>
+<p class="text-label-sm font-label-sm text-text-secondary uppercase">2101CS02</p>
+</div>
+<div class="w-10 h-10 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-bold text-title-md ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
+                        AS
+                    </div>
+</div>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="p-gutter-desktop max-w-container-max mx-auto space-y-6">
+<!-- Action Center / Bento Grid (Top Row) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Profile & Verification Widget -->
+<div class="bg-surface-container-lowest rounded-xl p-6 soft-shadow border border-surface-border flex flex-col justify-between">
+<div class="flex justify-between items-start mb-4">
+<h3 class="text-title-md font-title-md text-text-primary">Profile Status</h3>
+<!-- Status Badge (Soft-Fill) -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-status-success/10 text-status-success text-label-sm font-label-sm font-bold">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                            Verified
+                        </span>
+</div>
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="text-display-lg font-display-lg text-primary">85<span class="text-headline-md font-headline-md">%</span></span>
+<span class="text-label-md font-label-md text-text-secondary pb-2">Completeness</span>
+</div>
+<!-- Progress Bar -->
+<div class="w-full bg-surface-container-high rounded-full h-2 mb-2 overflow-hidden">
+<div class="bg-primary h-2 rounded-full" style="width: 85%"></div>
+</div>
+<p class="text-label-sm font-label-sm text-text-secondary">Complete missing academic records to reach 100%.</p>
+</div>
+</div>
+<!-- Urgent Action Card (Google Interview) -->
+<div class="bg-gradient-to-br from-primary to-navy-deep rounded-xl p-6 shadow-md border border-primary-container text-on-primary flex flex-col justify-between relative overflow-hidden">
+<!-- Decorative blur -->
+<div class="absolute -top-10 -right-10 w-32 h-32 bg-primary-fixed-dim/20 rounded-full blur-2xl"></div>
+<div class="relative z-10 flex justify-between items-start mb-2">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-status-warning/20 text-secondary-fixed text-label-sm font-label-sm border border-secondary-fixed/30 backdrop-blur-sm">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                            Action Required
+                        </span>
+<span class="material-symbols-outlined text-on-primary/50 text-[32px]">event_available</span>
+</div>
+<div class="relative z-10 mt-auto">
+<p class="text-label-sm font-label-sm text-on-primary-fixed-variant uppercase tracking-wider mb-1">Upcoming Interview</p>
+<h3 class="text-headline-md font-headline-md text-on-primary leading-tight mb-2">Google - Software Engineer</h3>
+<p class="text-body-md font-body-md text-on-primary/80 mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                            Tomorrow, 10:00 AM IST
+                        </p>
+<button class="w-full bg-surface-container-lowest text-primary py-2 rounded-lg text-label-md font-label-md font-bold hover:bg-surface transition-colors shadow-sm">
+                            Join Meeting Link
+                        </button>
+</div>
+</div>
+<!-- Quick Stats -->
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-lowest rounded-xl p-5 soft-shadow border border-surface-border flex flex-col justify-center">
+<span class="material-symbols-outlined text-text-secondary mb-2">assignment</span>
+<span class="text-headline-lg font-headline-lg text-text-primary">12</span>
+<span class="text-label-md font-label-md text-text-secondary">Applied</span>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-5 soft-shadow border border-surface-border flex flex-col justify-center">
+<span class="material-symbols-outlined text-status-warning mb-2">star</span>
+<span class="text-headline-lg font-headline-lg text-text-primary">03</span>
+<span class="text-label-md font-label-md text-text-secondary">Shortlisted</span>
+</div>
+<div class="col-span-2 bg-surface-container-low rounded-xl p-5 soft-shadow border border-surface-border flex items-center justify-between group cursor-pointer hover:bg-surface-container transition-colors">
+<div>
+<span class="text-title-md font-title-md text-text-primary block">Placement Policy</span>
+<span class="text-label-sm font-label-sm text-text-secondary">Review terms and conditions</span>
+</div>
+<span class="material-symbols-outlined text-text-secondary group-hover:text-primary transition-colors">arrow_forward</span>
+</div>
+</div>
+</div>
+<!-- Main Layout (Table & Timeline) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Application Tracker Table (Col Span 2) -->
+<div class="lg:col-span-2 bg-surface-container-lowest rounded-xl soft-shadow border border-surface-border overflow-hidden flex flex-col">
+<div class="p-5 border-b border-surface-border flex justify-between items-center bg-surface/50 backdrop-blur-sm">
+<h3 class="text-title-md font-title-md text-text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">list_alt</span>
+                            Recent Applications
+                        </h3>
+<a class="text-label-md font-label-md text-primary hover:text-navy-vibrant transition-colors" href="#">View All</a>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse min-w-[600px]">
+<thead class="bg-surface-container sticky top-0 z-10">
+<tr>
+<th class="py-3 px-5 text-label-sm font-label-sm text-text-secondary uppercase tracking-wider font-semibold">Company</th>
+<th class="py-3 px-5 text-label-sm font-label-sm text-text-secondary uppercase tracking-wider font-semibold">Role</th>
+<th class="py-3 px-5 text-label-sm font-label-sm text-text-secondary uppercase tracking-wider font-semibold">Applied On</th>
+<th class="py-3 px-5 text-label-sm font-label-sm text-text-secondary uppercase tracking-wider font-semibold">Status</th>
+</tr>
+</thead>
+<tbody class="text-body-md font-body-md">
+<tr class="even:bg-surface-container-lowest odd:bg-background/50 hover:bg-surface-variant/30 transition-colors border-b border-surface-variant/50 last:border-0">
+<td class="py-3 px-5 font-semibold text-text-primary">Microsoft</td>
+<td class="py-3 px-5 text-text-secondary">SDE Intern</td>
+<td class="py-3 px-5 text-text-secondary">Oct 12, 2024</td>
+<td class="py-3 px-5">
+<span class="inline-flex px-2 py-0.5 rounded text-[11px] font-bold bg-tertiary-fixed text-on-tertiary-fixed">Assessment</span>
+</td>
+</tr>
+<tr class="even:bg-surface-container-lowest odd:bg-background/50 hover:bg-surface-variant/30 transition-colors border-b border-surface-variant/50 last:border-0">
+<td class="py-3 px-5 font-semibold text-text-primary">Goldman Sachs</td>
+<td class="py-3 px-5 text-text-secondary">Analyst</td>
+<td class="py-3 px-5 text-text-secondary">Oct 10, 2024</td>
+<td class="py-3 px-5">
+<span class="inline-flex px-2 py-0.5 rounded text-[11px] font-bold bg-secondary-fixed text-on-secondary-fixed">Shortlisted</span>
+</td>
+</tr>
+<tr class="even:bg-surface-container-lowest odd:bg-background/50 hover:bg-surface-variant/30 transition-colors border-b border-surface-variant/50 last:border-0">
+<td class="py-3 px-5 font-semibold text-text-primary">Amazon</td>
+<td class="py-3 px-5 text-text-secondary">SDE 1</td>
+<td class="py-3 px-5 text-text-secondary">Oct 05, 2024</td>
+<td class="py-3 px-5">
+<span class="inline-flex px-2 py-0.5 rounded text-[11px] font-bold bg-surface-container-high text-on-surface-variant">Applied</span>
+</td>
+</tr>
+<tr class="even:bg-surface-container-lowest odd:bg-background/50 hover:bg-surface-variant/30 transition-colors border-b border-surface-variant/50 last:border-0">
+<td class="py-3 px-5 font-semibold text-text-primary">Atlassian</td>
+<td class="py-3 px-5 text-text-secondary">Product Engineer</td>
+<td class="py-3 px-5 text-text-secondary">Sep 28, 2024</td>
+<td class="py-3 px-5">
+<span class="inline-flex px-2 py-0.5 rounded text-[11px] font-bold bg-error-container text-on-error-container">Rejected</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Upcoming Schedule Timeline -->
+<div class="bg-surface-container-lowest rounded-xl p-6 soft-shadow border border-surface-border">
+<h3 class="text-title-md font-title-md text-text-primary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">calendar_month</span>
+                        Upcoming Schedule
+                    </h3>
+<div class="relative border-l border-surface-variant ml-3 space-y-6">
+<!-- Timeline Item 1 (Active/Next) -->
+<div class="relative pl-6">
+<div class="absolute -left-1.5 top-1.5 w-3 h-3 bg-primary rounded-full ring-4 ring-primary-fixed"></div>
+<p class="text-label-sm font-label-sm text-primary font-bold mb-1">TOMORROW, 10:00 AM</p>
+<div class="bg-surface p-3 rounded-lg border border-surface-border">
+<h4 class="text-label-md font-label-md font-bold text-text-primary">Google Tech Interview</h4>
+<p class="text-body-md font-body-md text-text-secondary text-xs mt-1">Round 1 - Algorithms &amp; Data Structures. Ensure stable internet.</p>
+</div>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative pl-6">
+<div class="absolute -left-[5px] top-1.5 w-2.5 h-2.5 bg-outline-variant rounded-full"></div>
+<p class="text-label-sm font-label-sm text-text-secondary mb-1">OCT 18, 2:00 PM</p>
+<div class="group cursor-pointer">
+<h4 class="text-label-md font-label-md font-medium text-text-primary group-hover:text-primary transition-colors">Microsoft Online Assessment</h4>
+<p class="text-body-md font-body-md text-text-secondary text-xs mt-1">Link will be activated 10 mins prior.</p>
+</div>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative pl-6">
+<div class="absolute -left-[5px] top-1.5 w-2.5 h-2.5 bg-outline-variant rounded-full"></div>
+<p class="text-label-sm font-label-sm text-text-secondary mb-1">OCT 22, 9:00 AM</p>
+<div>
+<h4 class="text-label-md font-label-md font-medium text-text-primary">Pre-Placement Talk: Jaguar Land Rover</h4>
+<p class="text-body-md font-body-md text-text-secondary text-xs mt-1">Venue: Main Auditorium</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Spacer for padding -->
+<div class="h-8"></div>
+</div>
+</main>
+
+
+<script>
+    document.getElementById('toggle-sidebar').addEventListener('click', () => {
+        const sidebar = document.querySelector('nav.md\\:flex');
+        const main = document.querySelector('main.flex-1');
+        sidebar.classList.toggle('collapsed');
+        main.classList.toggle('collapsed-margin');
+        
+        const icon = document.querySelector('#toggle-sidebar span.material-symbols-outlined');
+        if (sidebar.classList.contains('collapsed')) {
+            icon.textContent = 'menu';
+        } else {
+            icon.textContent = 'menu_open';
+        }
+    });
+</script></body></html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Student Calendar &amp; Notifications | IIT Patna CCDC</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#a7c8fd",
+                        "on-primary-container": "#7596c8",
+                        "on-primary-fixed": "#001c3b",
+                        "on-primary-fixed-variant": "#254875",
+                        "on-error-container": "#93000a",
+                        "tertiary-container": "#182f43",
+                        "secondary-fixed-dim": "#e9c176",
+                        "on-secondary-container": "#785a1a",
+                        "surface": "#f7f9fb",
+                        "tertiary-fixed-dim": "#b2c9e2",
+                        "gold-muted": "#B8860B",
+                        "secondary-container": "#fed488",
+                        "on-secondary-fixed-variant": "#5d4201",
+                        "on-error": "#ffffff",
+                        "gold-leaf": "#D4AF37",
+                        "surface-dim": "#d8dadc",
+                        "text-secondary": "#475569",
+                        "inverse-primary": "#a7c8fd",
+                        "navy-vibrant": "#003366",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#e0e3e5",
+                        "background": "#f7f9fb",
+                        "outline-variant": "#c3c6d0",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#3e5f8e",
+                        "primary-container": "#002d59",
+                        "surface-bright": "#f7f9fb",
+                        "on-surface": "#191c1e",
+                        "on-tertiary-fixed-variant": "#33495e",
+                        "error": "#ba1a1a",
+                        "outline": "#737780",
+                        "on-secondary": "#ffffff",
+                        "surface-border": "#E2E8F0",
+                        "primary": "#001835",
+                        "tertiary-fixed": "#cee5ff",
+                        "inverse-surface": "#2d3133",
+                        "status-success": "#10B981",
+                        "surface-container-high": "#e6e8ea",
+                        "text-primary": "#0F172A",
+                        "status-warning": "#F59E0B",
+                        "secondary": "#775a19",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed": "#261900",
+                        "on-surface-variant": "#43474f",
+                        "on-tertiary-container": "#8097af",
+                        "primary-fixed": "#d5e3ff",
+                        "surface-container-low": "#f2f4f6",
+                        "tertiary": "#011a2d",
+                        "inverse-on-surface": "#eff1f3",
+                        "status-error": "#EF4444",
+                        "on-background": "#191c1e",
+                        "surface-container": "#eceef0",
+                        "on-tertiary-fixed": "#041d30",
+                        "secondary-fixed": "#ffdea5",
+                        "navy-deep": "#001F3D",
+                        "surface-container-highest": "#e0e3e5"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter-desktop": "24px",
+                        "container-max": "1440px",
+                        "margin-mobile": "20px",
+                        "gutter-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "title-md": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "title-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+<style>
+    nav.collapsed {
+        --sidebar-width: 80px !important;
+    }
+    nav.collapsed .sidebar-label {
+        display: none;
+    }
+    nav.collapsed button#sidebar-toggle span.material-symbols-outlined {
+        transform: rotate(180deg);
+    }
+    main.sidebar-collapsed {
+        --sidebar-width: 80px !important;
+    }
+</style></head>
+<body class="bg-background text-on-background antialiased min-h-screen flex">
+<!-- SideNavBar (Predicted Component) -->
+<nav class="fixed left-0 top-0 h-full flex flex-col p-4 z-40 bg-surface-container-low text-text-primary border-r border-surface-border shadow-sm transition-all duration-300 w-[var(--sidebar-width)] hidden md:flex" style="--sidebar-width: 260px;">
+<div class="mb-8 px-4"><div class="flex items-center gap-3">
+    <div class="w-10 h-10 bg-primary rounded flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-white">school</span>
+    </div>
+    <div class="sidebar-label overflow-hidden whitespace-nowrap">
+        <h1 class="text-title-md font-bold text-primary">IIT Patna</h1>
+        <p class="text-[10px] uppercase tracking-wider text-text-secondary">CDC Portal</p>
+    </div>
+</div></div>
+<button class="mb-8 w-full h-12 rounded-lg bg-primary text-white hover:bg-navy-vibrant shadow-sm transition-all flex items-center justify-center overflow-hidden shrink-0">
+    <span class="material-symbols-outlined">add</span>
+    <span class="sidebar-label ml-2 font-medium whitespace-nowrap">New Application</span>
+</button>
+<div class="flex-1 overflow-y-auto space-y-2"><div class="space-y-1">
+    <a class="flex items-center gap-4 px-3 py-2.5 rounded-lg hover:bg-surface-container transition-colors group" href="#">
+        <span class="material-symbols-outlined text-text-secondary group-hover:text-primary">dashboard</span>
+        <span class="sidebar-label font-medium whitespace-nowrap">Dashboard</span>
+    </a>
+    <a class="flex items-center gap-4 px-3 py-2.5 rounded-lg bg-surface-container-highest text-primary transition-colors group" href="#">
+        <span class="material-symbols-outlined">work</span>
+        <span class="sidebar-label font-medium whitespace-nowrap">Drives</span>
+    </a>
+    <a class="flex items-center gap-4 px-3 py-2.5 rounded-lg hover:bg-surface-container transition-colors group" href="#">
+        <span class="material-symbols-outlined text-text-secondary group-hover:text-primary">person_search</span>
+        <span class="sidebar-label font-medium whitespace-nowrap">Profiles</span>
+    </a>
+    <a class="flex items-center gap-4 px-3 py-2.5 rounded-lg hover:bg-surface-container transition-colors group" href="#">
+        <span class="material-symbols-outlined text-text-secondary group-hover:text-primary">assignment_turned_in</span>
+        <span class="sidebar-label font-medium whitespace-nowrap">Applications</span>
+    </a>
+    <a class="flex items-center gap-4 px-3 py-2.5 rounded-lg hover:bg-surface-container transition-colors group" href="#">
+        <span class="material-symbols-outlined text-text-secondary group-hover:text-primary">event</span>
+        <span class="sidebar-label font-medium whitespace-nowrap">Interviews</span>
+    </a>
+    <a class="flex items-center gap-4 px-3 py-2.5 rounded-lg hover:bg-surface-container transition-colors group" href="#">
+        <span class="material-symbols-outlined text-text-secondary group-hover:text-primary">settings</span>
+        <span class="sidebar-label font-medium whitespace-nowrap">Settings</span>
+    </a>
+</div></div>
+<div class="mt-auto space-y-2 pt-4 border-t border-on-primary-fixed-variant/30"><div class="space-y-1 mb-4">
+    <a class="flex items-center gap-4 px-3 py-2.5 rounded-lg hover:bg-surface-container transition-colors group text-text-secondary" href="#">
+        <span class="material-symbols-outlined">help</span>
+        <span class="sidebar-label font-medium whitespace-nowrap">Support</span>
+    </a>
+    <a class="flex items-center gap-4 px-3 py-2.5 rounded-lg hover:bg-error-container hover:text-error transition-colors group text-text-secondary" href="#">
+        <span class="material-symbols-outlined">logout</span>
+        <span class="sidebar-label font-medium whitespace-nowrap">Logout</span>
+    </a>
+</div>
+<button id="sidebar-toggle" class="flex items-center gap-4 px-3 py-3 border-t border-surface-border w-full hover:bg-surface-container transition-colors">
+    <span class="material-symbols-outlined text-text-secondary">menu_open</span>
+    <span class="sidebar-label font-medium text-text-secondary whitespace-nowrap">Collapse</span>
+</button></div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-[var(--sidebar-width)] flex flex-col min-h-screen bg-surface w-full max-w-container-max mx-auto relative transition-all duration-300" style="--sidebar-width: 260px;">
+<!-- Header -->
+<header class="h-20 px-gutter-mobile md:px-gutter-desktop flex items-center justify-between border-b border-surface-border bg-surface/80 backdrop-blur-md sticky top-0 z-30">
+<div>
+<h2 class="text-headline-md font-headline-md text-text-primary hidden md:block">Schedule &amp; Notifications</h2>
+<h2 class="text-title-lg font-title-lg text-text-primary md:hidden">Schedule</h2>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 px-4 py-2 border border-surface-border rounded-lg text-body-md font-body-md text-text-secondary hover:text-primary hover:border-primary transition-colors bg-surface-container-lowest shadow-sm">
+<span class="material-symbols-outlined text-[20px]">calendar_add_on</span>
+<span class="hidden sm:inline">Export to Google Calendar</span>
+</button>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="p-gutter-mobile md:p-gutter-desktop flex-1">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left Column: Calendar/Timeline (Bento Style) -->
+<div class="lg:col-span-7 xl:col-span-8 flex flex-col gap-6">
+<!-- Weekly Mini Calendar Widget -->
+<section class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-surface-border p-6 relative overflow-hidden">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-title-md font-title-md text-text-primary">November 2024</h3>
+<div class="flex gap-2">
+<button class="p-1 rounded hover:bg-surface-container text-text-secondary"><span class="material-symbols-outlined">chevron_left</span></button>
+<button class="p-1 rounded hover:bg-surface-container text-text-secondary"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+<div class="grid grid-cols-7 gap-2 text-center mb-2">
+<div class="text-label-sm font-label-sm text-text-secondary uppercase">Mon</div>
+<div class="text-label-sm font-label-sm text-text-secondary uppercase">Tue</div>
+<div class="text-label-sm font-label-sm text-text-secondary uppercase">Wed</div>
+<div class="text-label-sm font-label-sm text-text-secondary uppercase">Thu</div>
+<div class="text-label-sm font-label-sm text-primary font-bold uppercase">Fri</div>
+<div class="text-label-sm font-label-sm text-text-secondary uppercase">Sat</div>
+<div class="text-label-sm font-label-sm text-text-secondary uppercase">Sun</div>
+</div>
+<div class="grid grid-cols-7 gap-2 text-center">
+<div class="p-2 text-body-md text-text-secondary">11</div>
+<div class="p-2 text-body-md text-text-secondary">12</div>
+<div class="p-2 text-body-md text-text-secondary">13</div>
+<div class="p-2 text-body-md text-text-secondary relative">
+                                14
+                                <div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-status-warning"></div>
+</div>
+<div class="p-2 text-body-md text-on-primary bg-primary rounded-lg font-bold shadow-md relative">
+                                15
+                                <div class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-status-error border-2 border-white"></div>
+</div>
+<div class="p-2 text-body-md text-text-secondary">16</div>
+<div class="p-2 text-body-md text-text-secondary">17</div>
+</div>
+</section>
+<!-- Upcoming Timeline -->
+<section class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-surface-border p-6 flex-1">
+<div class="flex justify-between items-center mb-6 border-b border-surface-border pb-4">
+<h3 class="text-title-md font-title-md text-text-primary">Upcoming Events</h3>
+<div class="flex gap-3">
+<span class="flex items-center gap-1 text-label-sm font-label-sm text-text-secondary"><div class="w-2 h-2 rounded-full bg-navy-vibrant"></div> PPTs</span>
+<span class="flex items-center gap-1 text-label-sm font-label-sm text-text-secondary"><div class="w-2 h-2 rounded-full bg-status-warning"></div> Assessments</span>
+<span class="flex items-center gap-1 text-label-sm font-label-sm text-text-secondary"><div class="w-2 h-2 rounded-full bg-status-success"></div> Interviews</span>
+</div>
+</div>
+<div class="relative border-l-2 border-surface-variant ml-3 space-y-8 pb-4">
+<!-- Timeline Item 1 -->
+<div class="relative pl-6">
+<div class="absolute w-4 h-4 rounded-full bg-surface-container-lowest border-2 border-status-warning -left-[9px] top-1"></div>
+<div class="mb-1">
+<span class="text-label-sm font-label-sm text-status-warning bg-status-warning/10 px-2 py-0.5 rounded mr-2">Online Assessment</span>
+<span class="text-label-md font-label-md text-text-secondary">Today, 2:00 PM - 3:30 PM</span>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border border-surface-border mt-2 hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start">
+<div>
+<h4 class="text-title-md font-title-md text-primary">Google - Software Engineering Intern</h4>
+<p class="text-body-md font-body-md text-text-secondary mt-1">Platform: HackerEarth. Ensure webcam and microphone are working.</p>
+</div>
+<button class="px-3 py-1.5 bg-primary text-on-primary rounded text-label-md font-label-md hover:bg-navy-vibrant transition-colors">Join Link</button>
+</div>
+</div>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative pl-6">
+<div class="absolute w-4 h-4 rounded-full bg-surface-container-lowest border-2 border-navy-vibrant -left-[9px] top-1"></div>
+<div class="mb-1">
+<span class="text-label-sm font-label-sm text-navy-vibrant bg-navy-vibrant/10 px-2 py-0.5 rounded mr-2">Pre-Placement Talk</span>
+<span class="text-label-md font-label-md text-text-secondary">Tomorrow, 10:00 AM</span>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border border-surface-border mt-2 hover:shadow-md transition-shadow">
+<h4 class="text-title-md font-title-md text-primary">Microsoft India Development Center</h4>
+<p class="text-body-md font-body-md text-text-secondary mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">location_on</span> Senate Hall, Main Building</p>
+</div>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative pl-6">
+<div class="absolute w-4 h-4 rounded-full bg-surface-container-lowest border-2 border-status-success -left-[9px] top-1"></div>
+<div class="mb-1">
+<span class="text-label-sm font-label-sm text-status-success bg-status-success/10 px-2 py-0.5 rounded mr-2">Technical Interview</span>
+<span class="text-label-md font-label-md text-text-secondary">Nov 18, 9:00 AM onwards</span>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border border-surface-border mt-2 hover:shadow-md transition-shadow">
+<h4 class="text-title-md font-title-md text-primary">Atlassian - SRE Role</h4>
+<p class="text-body-md font-body-md text-text-secondary mt-1">Shortlist published. Check email for exact slot timings.</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Notifications Feed -->
+<div class="lg:col-span-5 xl:col-span-4 flex flex-col gap-6">
+<section class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-surface-border flex-1 flex flex-col overflow-hidden h-[calc(100vh-140px)] sticky top-24">
+<!-- Notifications Header -->
+<div class="p-4 border-b border-surface-border bg-surface/50 backdrop-blur-sm z-10">
+<div class="flex justify-between items-center mb-3">
+<h3 class="text-title-md font-title-md text-text-primary flex items-center gap-2">
+                                    Updates <span class="bg-error text-on-error text-[10px] px-1.5 py-0.5 rounded-full font-bold">3</span>
+</h3>
+<button class="text-label-sm font-label-sm text-primary hover:text-navy-vibrant">Mark all as read</button>
+</div>
+<!-- Filter Pills -->
+<div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+<button class="whitespace-nowrap px-3 py-1 rounded-full bg-primary text-on-primary text-label-md font-label-md">All</button>
+<button class="whitespace-nowrap px-3 py-1 rounded-full bg-surface-container border border-surface-border text-text-secondary hover:bg-surface-variant text-label-md font-label-md transition-colors">Shortlists</button>
+<button class="whitespace-nowrap px-3 py-1 rounded-full bg-surface-container border border-surface-border text-text-secondary hover:bg-surface-variant text-label-md font-label-md transition-colors">Deadlines</button>
+<button class="whitespace-nowrap px-3 py-1 rounded-full bg-surface-container border border-surface-border text-text-secondary hover:bg-surface-variant text-label-md font-label-md transition-colors">General</button>
+</div>
+</div>
+<!-- Feed List -->
+<div class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+<!-- Unread Notification 1 -->
+<div class="p-3 rounded-lg bg-primary-fixed/20 border border-primary-fixed-dim/30 flex gap-3 hover:bg-primary-fixed/30 transition-colors cursor-pointer">
+<div class="mt-1 w-8 h-8 rounded-full bg-status-success/20 flex items-center justify-center shrink-0 text-status-success">
+<span class="material-symbols-outlined text-[18px]">fact_check</span>
+</div>
+<div>
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-label-md font-label-md font-bold text-text-primary">Shortlist Announced</h4>
+<span class="text-[10px] text-text-secondary whitespace-nowrap ml-2">10 mins ago</span>
+</div>
+<p class="text-body-md font-body-md text-text-secondary text-sm line-clamp-2">The shortlist for DE Shaw Online Assessment has been published. Please check the Applications tab.</p>
+</div>
+</div>
+<!-- Unread Notification 2 -->
+<div class="p-3 rounded-lg bg-primary-fixed/20 border border-primary-fixed-dim/30 flex gap-3 hover:bg-primary-fixed/30 transition-colors cursor-pointer">
+<div class="mt-1 w-8 h-8 rounded-full bg-status-error/20 flex items-center justify-center shrink-0 text-status-error">
+<span class="material-symbols-outlined text-[18px]">warning</span>
+</div>
+<div>
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-label-md font-label-md font-bold text-text-primary">Deadline Approaching</h4>
+<span class="text-[10px] text-text-secondary whitespace-nowrap ml-2">2 hours ago</span>
+</div>
+<p class="text-body-md font-body-md text-text-secondary text-sm line-clamp-2">Application for Oracle India closes tonight at 11:59 PM. Ensure your resume is updated.</p>
+</div>
+</div>
+<!-- Read Notification -->
+<div class="p-3 rounded-lg hover:bg-surface-container transition-colors cursor-pointer flex gap-3 opacity-70">
+<div class="mt-1 w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center shrink-0 text-text-secondary">
+<span class="material-symbols-outlined text-[18px]">campaign</span>
+</div>
+<div>
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-label-md font-label-md text-text-primary">New Drive Added</h4>
+<span class="text-[10px] text-text-secondary whitespace-nowrap ml-2">Yesterday</span>
+</div>
+<p class="text-body-md font-body-md text-text-secondary text-sm line-clamp-2">Samsung R&amp;D Institute has opened applications for B.Tech CSE/EE 2025 batch.</p>
+</div>
+</div>
+<!-- Read Notification -->
+<div class="p-3 rounded-lg hover:bg-surface-container transition-colors cursor-pointer flex gap-3 opacity-70">
+<div class="mt-1 w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center shrink-0 text-text-secondary">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+</div>
+<div>
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-label-md font-label-md text-text-primary">PPT Rescheduled</h4>
+<span class="text-[10px] text-text-secondary whitespace-nowrap ml-2">Nov 13</span>
+</div>
+<p class="text-body-md font-body-md text-text-secondary text-sm line-clamp-2">The Pre-Placement Talk for Goldman Sachs is moved to 4:00 PM today in virtual mode.</p>
+</div>
+</div>
+<!-- Read Notification -->
+<div class="p-3 rounded-lg hover:bg-surface-container transition-colors cursor-pointer flex gap-3 opacity-70">
+<div class="mt-1 w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center shrink-0 text-text-secondary">
+<span class="material-symbols-outlined text-[18px]">description</span>
+</div>
+<div>
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-label-md font-label-md text-text-primary">Document Verification</h4>
+<span class="text-[10px] text-text-secondary whitespace-nowrap ml-2">Nov 12</span>
+</div>
+<p class="text-body-md font-body-md text-text-secondary text-sm line-clamp-2">Your 6th semester grade sheet has been successfully verified by the CDC office.</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+</main>
+<style>
+        /* Custom scrollbar for inner feed */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #e0e3e5; /* surface-variant */
+            border-radius: 10px;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+
+
+<script>
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const sidebar = document.querySelector('nav');
+    const main = document.querySelector('main');
+    
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        main.classList.toggle('sidebar-collapsed');
+        
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        const width = isCollapsed ? '80px' : '260px';
+        sidebar.style.setProperty('--sidebar-width', width);
+        main.style.setProperty('--sidebar-width', width);
+    });
+</script></body></html>

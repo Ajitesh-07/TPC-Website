@@ -1,0 +1,280 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Design tokens — IIT Patna CCDC (Material Design 3 inspired)
+   Ported from the old Tailwind v3 config to Tailwind v4 CSS-first `@theme`.
+   Adding `--color-*`, `--font-*`, `--text-*`, etc. extends the default theme,
+   so utilities like `bg-primary`, `text-headline-lg`, `px-gutter-desktop` work.
+   ========================================================================== */
+@theme {
+  /* -- Colors ------------------------------------------------------------- */
+  --color-primary: #001835;
+  --color-primary-container: #002d59;
+  --color-primary-fixed: #d5e3ff;
+  --color-primary-fixed-dim: #a7c8fd;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #7596c8;
+  --color-on-primary-fixed: #001c3b;
+  --color-on-primary-fixed-variant: #254875;
+  --color-inverse-primary: #a7c8fd;
+
+  --color-secondary: #775a19;
+  --color-secondary-container: #fed488;
+  --color-secondary-fixed: #ffdea5;
+  --color-secondary-fixed-dim: #e9c176;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #785a1a;
+  --color-on-secondary-fixed: #261900;
+  --color-on-secondary-fixed-variant: #5d4201;
+
+  --color-tertiary: #011a2d;
+  --color-tertiary-container: #182f43;
+  --color-tertiary-fixed: #cee5ff;
+  --color-tertiary-fixed-dim: #b2c9e2;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #8097af;
+  --color-on-tertiary-fixed: #041d30;
+  --color-on-tertiary-fixed-variant: #33495e;
+
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  --color-background: #f7f9fb;
+  --color-on-background: #191c1e;
+
+  --color-surface: #f7f9fb;
+  --color-surface-dim: #d8dadc;
+  --color-surface-bright: #f7f9fb;
+  --color-surface-tint: #3e5f8e;
+  --color-surface-variant: #e0e3e5;
+  --color-surface-border: #e2e8f0;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container: #eceef0;
+  --color-surface-container-high: #e6e8ea;
+  --color-surface-container-highest: #e0e3e5;
+  --color-on-surface: #191c1e;
+  --color-on-surface-variant: #43474f;
+  --color-inverse-surface: #2d3133;
+  --color-inverse-on-surface: #eff1f3;
+
+  --color-outline: #737780;
+  --color-outline-variant: #c3c6d0;
+
+  --color-navy-vibrant: #003366;
+  --color-navy-deep: #001f3d;
+  --color-gold-leaf: #d4af37;
+  --color-gold-muted: #b8860b;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+
+  --color-status-success: #10b981;
+  --color-status-warning: #f59e0b;
+  --color-status-error: #ef4444;
+
+  /* -- Font families (all map to Hanken Grotesk) -------------------------- */
+  --font-display-lg: "Hanken Grotesk", sans-serif;
+  --font-headline-lg: "Hanken Grotesk", sans-serif;
+  --font-headline-lg-mobile: "Hanken Grotesk", sans-serif;
+  --font-headline-md: "Hanken Grotesk", sans-serif;
+  --font-title-lg: "Hanken Grotesk", sans-serif;
+  --font-title-md: "Hanken Grotesk", sans-serif;
+  --font-body-lg: "Hanken Grotesk", sans-serif;
+  --font-body-md: "Hanken Grotesk", sans-serif;
+  --font-label-md: "Hanken Grotesk", sans-serif;
+  --font-label-sm: "Hanken Grotesk", sans-serif;
+
+  /* -- Type scale (size + line-height + tracking + weight) ---------------- */
+  --text-display-lg: 48px;
+  --text-display-lg--line-height: 56px;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-display-lg--font-weight: 700;
+
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg--letter-spacing: -0.01em;
+  --text-headline-lg--font-weight: 600;
+
+  --text-headline-lg-mobile: 28px;
+  --text-headline-lg-mobile--line-height: 36px;
+  --text-headline-lg-mobile--font-weight: 600;
+
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md--font-weight: 600;
+
+  --text-title-lg: 20px;
+  --text-title-lg--line-height: 28px;
+  --text-title-lg--font-weight: 600;
+
+  --text-title-md: 16px;
+  --text-title-md--line-height: 24px;
+  --text-title-md--font-weight: 600;
+
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-md--font-weight: 400;
+
+  --text-label-md: 12px;
+  --text-label-md--line-height: 16px;
+  --text-label-md--letter-spacing: 0.05em;
+  --text-label-md--font-weight: 500;
+
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 14px;
+  --text-label-sm--letter-spacing: 0.08em;
+  --text-label-sm--font-weight: 600;
+
+  /* -- Spacing (custom gutters / margins) --------------------------------- */
+  --spacing-unit: 4px;
+  --spacing-gutter-mobile: 16px;
+  --spacing-gutter-desktop: 24px;
+  --spacing-margin-mobile: 20px;
+  --spacing-margin-desktop: 40px;
+
+  /* -- Border radius (the old config intentionally shrinks the scale) ----- */
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+}
+
+/* Centered page container (1440px max) used across the site + portal. */
+@utility max-w-container-max {
+  max-width: 1440px;
+}
+
+/* The old v3 config intentionally shrank the radius scale, including bare
+   `rounded` (0.125rem) and `rounded-full` (0.75rem). Those two are NOT
+   theme-driven in v4 and `@utility` can't override a built-in, so these
+   unlayered rules (which outrank Tailwind's `@layer utilities`) restore the
+   UI's tight 12px "full" corners. */
+.rounded {
+  border-radius: 0.125rem;
+}
+.rounded-full {
+  border-radius: 0.75rem;
+}
+
+@layer base {
+  body {
+    font-family: "Hanken Grotesk", sans-serif;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.04);
+  }
+
+  .hero-gradient {
+    background: linear-gradient(
+      135deg,
+      var(--color-primary) 0%,
+      var(--color-navy-vibrant) 100%
+    );
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #001835 0%, #003366 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .btn-primary {
+    background: linear-gradient(180deg, #001835 0%, #001f3d 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .btn-gradient {
+    background: linear-gradient(135deg, #001835 0%, #003366 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .elevation-1 {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  }
+  .elevation-2 {
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  }
+
+  /* `soft-shadow` and `hover-lift` were referenced by pages but never defined
+     in the old project — realized here with their evident intent. */
+  .soft-shadow {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  }
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  }
+
+  .input-glow:focus-within {
+    box-shadow: 0 0 0 2px rgba(0, 45, 89, 0.1);
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-outline-variant) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-outline-variant);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
