@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SIDEBAR_ITEMS } from "@/data/navigation";
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const pathname = usePathname();
 
   return (
     <nav
@@ -26,7 +28,7 @@ const Sidebar = () => {
               IIT Patna Portal
             </h1>
             <p className="text-label-sm font-label-sm text-on-primary-fixed-variant uppercase tracking-wider truncate">
-              Career Development Centre
+              Centre for Career Development &amp; Counselling
             </p>
           </div>
         )}
@@ -34,19 +36,26 @@ const Sidebar = () => {
 
       {/* Navigation links */}
       <div className="flex-1 space-y-1 overflow-y-auto pr-2 overflow-x-hidden">
-        {SIDEBAR_ITEMS.map((item) => (
+        {SIDEBAR_ITEMS.map((item) => {
+          // A real route is active when it matches the current path (exactly or
+          // as a parent segment). Placeholder "#" links are never active.
+          const isActive =
+            item.href !== "#" &&
+            (pathname === item.href || pathname.startsWith(`${item.href}/`));
+          return (
           <Link
             key={item.label}
             href={item.href}
+            aria-current={isActive ? "page" : undefined}
             className={`nav-link flex items-center gap-3 py-3 transition-all rounded-xl ${
-              item.active
+              isActive
                 ? "bg-primary/10 text-primary"
                 : "text-on-surface-variant hover:bg-surface-variant group"
             } ${collapsed ? "justify-center px-0" : "px-4"}`}
           >
             <span
               className="material-symbols-outlined text-[24px]"
-              style={item.active ? { fontVariationSettings: "'FILL' 1" } : undefined}
+              style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
             >
               {item.icon}
             </span>
@@ -56,7 +65,8 @@ const Sidebar = () => {
               </span>
             )}
           </Link>
-        ))}
+          );
+        })}
       </div>
 
       {/* CTA & footer tabs */}

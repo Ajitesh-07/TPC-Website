@@ -29,17 +29,16 @@ export const FOOTER_RESOURCES: NavLink[] = [
   { label: "Student Portal", href: "/#portal-access" },
 ];
 
-/** Material Symbols icon name + link for a portal sidebar entry. */
+/** Material Symbols icon name + link for a portal sidebar entry.
+ *  Active styling is derived from the current route in the Sidebar component. */
 export interface SidebarItem {
   label: string;
   icon: string;
   href: string;
-  /** Filled icon + active styling (the current page in the mock). */
-  active?: boolean;
 }
 
 export const SIDEBAR_ITEMS: SidebarItem[] = [
-  { label: "Dashboard", icon: "dashboard", href: "/student-dashboard", active: true },
+  { label: "Dashboard", icon: "dashboard", href: "/student-dashboard" },
   { label: "Drives", icon: "work", href: "/drive-catalogue" },
   { label: "Profiles", icon: "person_search", href: "/my-profile" },
   { label: "Applications", icon: "assignment_turned_in", href: "#" },

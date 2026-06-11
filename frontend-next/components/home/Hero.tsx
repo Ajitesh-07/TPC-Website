@@ -1,3 +1,5 @@
+import Button from "@/components/ui/Button";
+
 // Campus image doubles as the video poster until a real placement reel is
 // dropped into /public/placement-reel.mp4. Video is muted + looping per brief.
 const POSTER_IMAGE =
@@ -36,24 +38,18 @@ const Hero = () => {
           the minds shaping tomorrow&apos;s technology landscape at IIT Patna.
         </p>
         <div className="flex flex-wrap gap-4 justify-center">
-          <a
+          <Button
             href="#contact"
-            className="bg-gold-leaf text-on-secondary-fixed font-title-md text-title-md px-8 py-3.5 rounded-lg shadow-lg hover:bg-secondary-container transition-colors duration-200 flex items-center gap-2"
+            variant="gold"
+            size="lg"
+            icon="arrow_forward"
+            iconPosition="right"
           >
             For Recruiters
-            <span
-              className="material-symbols-outlined"
-              style={{ fontVariationSettings: "'FILL' 0" }}
-            >
-              arrow_forward
-            </span>
-          </a>
-          <a
-            href="#portal-access"
-            className="glass-panel text-on-primary border-white/20 font-title-md text-title-md px-8 py-3.5 rounded-lg hover:bg-white/10 transition-colors duration-200"
-          >
+          </Button>
+          <Button href="#portal-access" variant="glass" size="lg">
             Student Portal
-          </a>
+          </Button>
         </div>
       </div>
     </section>

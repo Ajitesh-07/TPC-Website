@@ -1,3 +1,4 @@
+import IconTile from "@/components/ui/IconTile";
 import { PILLARS } from "@/data/home";
 
 const AboutTPC = () => {
@@ -35,11 +36,7 @@ const AboutTPC = () => {
               key={pillar.title}
               className="glass-panel rounded-xl p-6 elevation-1 hover:elevation-2 transition-shadow duration-300"
             >
-              <div className="w-12 h-12 rounded-lg bg-primary-fixed flex items-center justify-center mb-4">
-                <span className="material-symbols-outlined text-primary">
-                  {pillar.icon}
-                </span>
-              </div>
+              <IconTile icon={pillar.icon} className="mb-4" />
               <h3 className="text-title-md font-title-md text-primary mb-2">
                 {pillar.title}
               </h3>

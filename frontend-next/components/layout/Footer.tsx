@@ -10,7 +10,7 @@ const Footer = () => {
         {/* Brand */}
         <div className="md:col-span-5">
           <div className="text-title-lg font-title-lg text-on-primary mb-3">
-            IIT Patna Career Development Centre
+            IIT Patna · Centre for Career Development &amp; Counselling
           </div>
           <p className="text-body-md font-body-md text-tertiary-fixed-dim max-w-sm mb-6">
             Connecting world-class talent with global industry leaders. The
@@ -18,7 +18,7 @@ const Footer = () => {
           </p>
           <div className="flex items-center gap-3">
             {SOCIAL_ICONS.map((icon) => (
-              <a
+              <Link
                 key={icon}
                 href="/#contact"
                 className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-tertiary-fixed-dim hover:bg-white/20 hover:text-on-primary transition-colors"
@@ -27,7 +27,7 @@ const Footer = () => {
                 <span className="material-symbols-outlined text-[20px]">
                   {icon}
                 </span>
-              </a>
+              </Link>
             ))}
           </div>
         </div>
