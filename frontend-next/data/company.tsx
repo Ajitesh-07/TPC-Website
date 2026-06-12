@@ -42,6 +42,45 @@ export interface ActivityItem {
   time: string;
 }
 
+/** Live applicant counts per open role — feeds the dashboard metrics strip. */
+export interface RoleApplicantStat {
+  role: string;
+  applicants: number;
+  shortlisted: number;
+}
+
+export const LIVE_APPLICANT_STATS: RoleApplicantStat[] = [
+  { role: "Software Engineer (SDE)", applicants: 642, shortlisted: 48 },
+  { role: "Data Analyst", applicants: 411, shortlisted: 30 },
+  { role: "Product Manager", applicants: 195, shortlisted: 12 },
+];
+
+/** Placement-cell points of contact for quick communication. */
+export interface ContactPerson {
+  name: string;
+  role: string;
+  phone: string;
+  email: string;
+  initials: string;
+}
+
+export const COMPANY_POCS: ContactPerson[] = [
+  {
+    name: "Aarav Mehta",
+    role: "Placement Coordinator",
+    phone: "+91 98765 43210",
+    email: "coordinator.tpc@iitp.ac.in",
+    initials: "AM",
+  },
+  {
+    name: "Dr. R. K. Singh",
+    role: "Faculty In-charge, TPC",
+    phone: "+91 91234 56789",
+    email: "tpc@iitp.ac.in",
+    initials: "RS",
+  },
+];
+
 export const COMPANY_ACTIVITY: ActivityItem[] = [
   {
     icon: "check_circle",

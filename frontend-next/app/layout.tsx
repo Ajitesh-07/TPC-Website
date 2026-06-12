@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
 import Providers from "./providers";
+import { ROLE_COOKIE, DEFAULT_ROLE, isRole } from "@/lib/roles";
 
 export const metadata: Metadata = {
   title: "IIT Patna CCDC",
@@ -9,11 +11,17 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.svg" },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Read the mock role cookie so the role-scoped UI renders correctly on the
+  // server (and the first client render agrees — no hydration flash).
+  const cookieStore = await cookies();
+  const raw = cookieStore.get(ROLE_COOKIE)?.value;
+  const initialRole = isRole(raw) ? raw : DEFAULT_ROLE;
+
   return (
     <html lang="en" className="light">
       <head>
@@ -33,7 +41,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-background text-on-background antialiased min-h-screen flex flex-col">
-        <Providers>{children}</Providers>
+        <Providers initialRole={initialRole}>{children}</Providers>
       </body>
     </html>
   );

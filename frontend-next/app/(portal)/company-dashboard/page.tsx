@@ -1,5 +1,10 @@
 import { Timeline, TimelineItem } from "@/components/ui/Timeline";
-import { COMPANY_ITINERARY, COMPANY_ACTIVITY } from "@/data/company";
+import {
+  COMPANY_ITINERARY,
+  COMPANY_ACTIVITY,
+  LIVE_APPLICANT_STATS,
+  COMPANY_POCS,
+} from "@/data/company";
 
 const HR_AVATAR =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuBWyecKY1tZpSOBiDCwB_MDiiIJYPynz7AYTvYSwRHELaPAIZMFUnf8jP2__cOWwXXm_lGbBPnXvoSirTeqyipT4cPuJ4DZFpY71pLGDuTfEsL7s03AO4UEByMrE-BLq9efz9xSvhoKT2YEGlaaqKdzxQ6tpl4fxV9822mZ9K4_bYgG1MQas3UYS4ED3oMMJdUsu6KzZJKTfGrZ7d-3MioZc8G6ZWo5s6tzcA8o3-xNlghKjrlNFNDnVhnFtom69BQsTwaMNEYp_jCf";
@@ -120,6 +125,87 @@ const CompanyDashboard = () => {
           </div>
         </div>
       </section>
+
+      {/* Live applicant metrics + point of contact */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        {/* Live applicants per role */}
+        <section className="lg:col-span-2 bg-surface-container-lowest rounded-xl border border-surface-border shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-title-lg font-title-lg text-text-primary">
+              Live Applicant Metrics
+            </h3>
+            <span className="inline-flex items-center gap-1.5 text-label-sm font-label-sm text-status-success">
+              <span className="w-1.5 h-1.5 rounded-full bg-status-success animate-pulse" />
+              Live
+            </span>
+          </div>
+          <div className="space-y-4">
+            {LIVE_APPLICANT_STATS.map((stat) => (
+              <div key={stat.role}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-label-md font-label-md text-text-primary">
+                    {stat.role}
+                  </span>
+                  <span className="text-label-sm font-label-sm text-text-secondary">
+                    {stat.applicants} applied •{" "}
+                    <span className="text-status-success">
+                      {stat.shortlisted} shortlisted
+                    </span>
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-surface-container-high overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-navy-vibrant"
+                    style={{
+                      width: `${Math.round(
+                        (stat.shortlisted / stat.applicants) * 100 * 8
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Point of contact */}
+        <section className="bg-surface-container-lowest rounded-xl border border-surface-border shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-6">
+          <h3 className="text-title-lg font-title-lg text-text-primary mb-6">
+            Point of Contact
+          </h3>
+          <ul className="space-y-5">
+            {COMPANY_POCS.map((poc) => (
+              <li key={poc.email} className="flex gap-4">
+                <div className="w-11 h-11 rounded-full bg-primary-fixed text-primary flex items-center justify-center shrink-0 text-label-md font-label-md font-semibold">
+                  {poc.initials}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-title-md font-title-md text-text-primary truncate">
+                    {poc.name}
+                  </p>
+                  <p className="text-label-sm font-label-sm text-text-secondary mb-1.5">
+                    {poc.role}
+                  </p>
+                  <a
+                    href={`tel:${poc.phone.replace(/\s/g, "")}`}
+                    className="flex items-center gap-1.5 text-label-sm font-label-sm text-text-secondary hover:text-primary transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">call</span>
+                    {poc.phone}
+                  </a>
+                  <a
+                    href={`mailto:${poc.email}`}
+                    className="flex items-center gap-1.5 text-label-sm font-label-sm text-text-secondary hover:text-primary transition-colors truncate"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">mail</span>
+                    <span className="truncate">{poc.email}</span>
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
 
       {/* Lower section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">

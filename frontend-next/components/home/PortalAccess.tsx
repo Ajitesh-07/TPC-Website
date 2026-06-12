@@ -1,10 +1,23 @@
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
 import SectionHeading from "@/components/ui/SectionHeading";
 import Button from "@/components/ui/Button";
 import IconTile from "@/components/ui/IconTile";
 import { STAFF_ROLES } from "@/data/navigation";
+import { useRole } from "@/components/providers/RoleProvider";
+import { DEFAULT_DASHBOARD, type Role } from "@/lib/roles";
 
 const PortalAccess = () => {
+  const { setRole } = useRole();
+  const router = useRouter();
+
+  // Mock "login": set the role cookie, then land on that role's dashboard.
+  const enterAs = (role: Role) => {
+    setRole(role);
+    router.push(DEFAULT_DASHBOARD[role]);
+  };
+
   return (
     <section id="portal-access" className="py-24 px-gutter-desktop hero-gradient">
       <div className="max-w-container-max mx-auto">
@@ -29,7 +42,7 @@ const PortalAccess = () => {
               IDs.
             </p>
             <Button
-              href="/student-dashboard"
+              onClick={() => enterAs("student")}
               icon="mail"
               className="w-full mb-3"
             >
@@ -42,16 +55,17 @@ const PortalAccess = () => {
 
           {/* Staff role logins */}
           <div className="lg:col-span-5 flex flex-col gap-4">
-            {STAFF_ROLES.map((role) => (
-              <Link
-                key={role.label}
-                href={role.href}
-                className="glass-panel rounded-xl p-5 flex items-center gap-4 hover:bg-white/90 transition-colors duration-200 group"
+            {STAFF_ROLES.map((staff) => (
+              <button
+                key={staff.label}
+                type="button"
+                onClick={() => enterAs(staff.role)}
+                className="glass-panel rounded-xl p-5 flex items-center gap-4 hover:bg-white/90 transition-colors duration-200 group text-left"
               >
-                <IconTile icon={role.icon} size="sm" />
+                <IconTile icon={staff.icon} size="sm" />
                 <div className="grow">
                   <div className="text-title-md font-title-md text-primary">
-                    {role.label}
+                    {staff.label}
                   </div>
                   <div className="text-label-sm font-label-sm text-text-secondary uppercase tracking-wider">
                     Staff access
@@ -60,7 +74,7 @@ const PortalAccess = () => {
                 <span className="material-symbols-outlined text-text-secondary group-hover:translate-x-1 transition-transform">
                   arrow_forward
                 </span>
-              </Link>
+              </button>
             ))}
           </div>
         </div>

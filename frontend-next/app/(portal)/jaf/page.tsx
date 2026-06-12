@@ -4,6 +4,16 @@ import { useState } from "react";
 
 const STEPS = ["Role Specs", "JD Upload", "Eligibility", "Timeline"];
 
+// Drive lifecycle after submission. `DRIVE_STATUS_INDEX` is the current stage
+// (mock): this announcement is awaiting TPC sign-off.
+const STATUS_STAGES = [
+  "Draft",
+  "Pending TPC Approval",
+  "Open for Applications",
+  "Deadline Closed",
+];
+const DRIVE_STATUS_INDEX = 1;
+
 const FORM_INPUT =
   "w-full bg-transparent border border-outline-variant rounded-lg px-4 py-3.5 text-body-md font-body-md text-text-primary focus:outline-none focus:border-primary focus:ring-0 transition-colors relative z-0 placeholder:text-outline";
 
@@ -97,6 +107,62 @@ const JobAnnouncementForm = () => {
             );
           })}
         </ul>
+      </div>
+
+      {/* Drive status tracker (lifecycle after submission) */}
+      <div className="mb-8 bg-surface-container-lowest rounded-xl border border-surface-border p-5 md:p-6 elevation-1">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-label-sm font-label-sm uppercase tracking-wider text-text-secondary">
+            Drive Status
+          </h3>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-status-warning/10 text-status-warning text-label-sm font-label-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-status-warning" />
+            {STATUS_STAGES[DRIVE_STATUS_INDEX]}
+          </span>
+        </div>
+        <div className="flex items-center">
+          {STATUS_STAGES.map((stage, i) => {
+            const done = i < DRIVE_STATUS_INDEX;
+            const current = i === DRIVE_STATUS_INDEX;
+            return (
+              <div key={stage} className="flex items-center flex-1 last:flex-none">
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <div
+                    className={
+                      done
+                        ? "w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center shrink-0"
+                        : current
+                        ? "w-7 h-7 rounded-full bg-status-warning text-on-primary flex items-center justify-center shrink-0 ring-4 ring-status-warning/15"
+                        : "w-7 h-7 rounded-full bg-surface-container-lowest border-2 border-surface-border text-text-secondary flex items-center justify-center shrink-0"
+                    }
+                  >
+                    {done ? (
+                      <span className="material-symbols-outlined text-[16px]">check</span>
+                    ) : (
+                      <span className="text-label-sm font-label-sm">{i + 1}</span>
+                    )}
+                  </div>
+                  <span
+                    className={
+                      current
+                        ? "text-label-sm font-label-sm text-text-primary font-bold text-center max-w-[7rem]"
+                        : "text-label-sm font-label-sm text-text-secondary text-center max-w-[7rem]"
+                    }
+                  >
+                    {stage}
+                  </span>
+                </div>
+                {i < STATUS_STAGES.length - 1 && (
+                  <div
+                    className={`h-[2px] flex-1 mx-2 -mt-6 ${
+                      done ? "bg-primary" : "bg-surface-border"
+                    }`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Form container */}
@@ -319,6 +385,21 @@ const JobAnnouncementForm = () => {
               <p className="text-body-md font-body-md text-text-secondary mb-10">
                 Set application deadlines and tentative interview dates.
               </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+                {[
+                  { id: "deadline", label: "Application Deadline" },
+                  { id: "oa_date", label: "Online Assessment" },
+                  { id: "interview_date", label: "Interview Round" },
+                  { id: "result_date", label: "Result / Offer Roll-out" },
+                ].map((field) => (
+                  <div key={field.id} className="relative input-glow">
+                    <label className={FLOATING_LABEL} htmlFor={field.id}>
+                      {field.label}
+                    </label>
+                    <input className={FORM_INPUT} id={field.id} type="date" />
+                  </div>
+                ))}
+              </div>
               <div className="mt-10 flex justify-between">
                 <button
                   className={BACK_BUTTON}

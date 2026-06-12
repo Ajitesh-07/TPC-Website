@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
+import RoleSwitcher from "@/components/layout/RoleSwitcher";
+import { useRole } from "@/components/providers/RoleProvider";
+import { canAccess, DEFAULT_DASHBOARD } from "@/lib/roles";
 
 /**
  * Portal chrome: the fixed Sidebar plus a mobile top bar that opens it as an
@@ -14,6 +18,17 @@ export default function PortalShell({
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { role } = useRole();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Client-side backstop to proxy.ts: if the role switches while sitting on a
+  // page it no longer has access to, bounce to that role's dashboard.
+  useEffect(() => {
+    if (!canAccess(role, pathname)) {
+      router.replace(DEFAULT_DASHBOARD[role]);
+    }
+  }, [role, pathname, router]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -43,6 +58,9 @@ export default function PortalShell({
 
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+
+      {/* Dev-only mock login / role switcher. */}
+      <RoleSwitcher />
     </div>
   );
 }
