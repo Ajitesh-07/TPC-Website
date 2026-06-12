@@ -367,6 +367,7 @@ model Student {
   creditTransactions      CreditTransaction[]
   dataCorrectionRequests  DataCorrectionRequest[]
   formResponses           FormResponse[]
+  registrationResponses   RegistrationResponse[]
 
   @@index([branchId], map: "idx_students_branch")
   @@index([placementStatus], map: "idx_students_placement")
@@ -391,6 +392,7 @@ model Company {
   slug        String?  @unique
   website     String?
   industry    String?
+  location    String?
   logoUrl     String?  @map("logo_url")
   description String?
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -491,6 +493,7 @@ model Drive {
   minCpi              Decimal?         @map("min_cpi") @db.Decimal(4, 2)
   allowBacklog        Boolean          @default(false) @map("allow_backlog")
   customRules         String?          @map("custom_rules")
+  openings            Int?
   status              DriveStatus      @default(draft)
   applicationDeadline DateTime?        @map("application_deadline") @db.Timestamptz(6)
   approvedBy          String?          @map("approved_by") @db.Uuid
@@ -905,9 +908,28 @@ model CompanyRegistration {
   createdByUser User?           @relation("CompanyRegistrationCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
 
   registrationEligibleBranches RegistrationEligibleBranch[]
+  registrationResponses        RegistrationResponse[]
 
   @@index([formId], map: "idx_company_registrations_form")
   @@map("company_registrations")
+}
+
+/// A student's submission to a company registration (Phase 2 — a lightweight
+/// stand-in until the full forms engine lands; `answers` holds any extra fields).
+model RegistrationResponse {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  registrationId String   @map("registration_id") @db.Uuid
+  studentId      String   @map("student_id") @db.Uuid
+  answers        Json     @default(dbgenerated("'{}'::jsonb"))
+  submittedAt    DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+
+  registration CompanyRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  student      Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationId, studentId])
+  @@index([registrationId], map: "idx_reg_responses_reg")
+  @@index([studentId], map: "idx_reg_responses_student")
+  @@map("registration_responses")
 }
 
 model RegistrationEligibleBranch {

@@ -1,5 +1,5 @@
 import nodemailer, { type Transporter } from "nodemailer";
-import { env } from "../config/env";
+import { env, isProduction } from "../config/env";
 
 /**
  * Outbound email. If SMTP is configured it sends for real; otherwise (dev) it
@@ -18,7 +18,13 @@ if (env.smtp.host) {
 
 export async function sendMail(to: string, subject: string, html: string): Promise<void> {
   if (!transporter) {
-    // Dev fallback — no SMTP configured.
+    // No SMTP configured. In production this is a misconfiguration and the
+    // message body may contain secrets (magic-link tokens) — NEVER log it.
+    if (isProduction) {
+      console.error(`[mailer] SMTP not configured — dropped email to ${to} ("${subject}")`);
+      return;
+    }
+    // Dev convenience only: print the body so flows can be tested without SMTP.
     console.log(`\n[mailer:dev] (no SMTP configured)\n  To: ${to}\n  Subject: ${subject}\n  ${html}\n`);
     return;
   }

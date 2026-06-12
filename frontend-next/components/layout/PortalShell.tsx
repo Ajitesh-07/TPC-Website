@@ -18,17 +18,25 @@ export default function PortalShell({
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { role } = useRole();
+  const { role, sessionStatus } = useRole();
   const pathname = usePathname();
   const router = useRouter();
 
-  // Client-side backstop to proxy.ts: if the role switches while sitting on a
-  // page it no longer has access to, bounce to that role's dashboard.
+  // Client-side backstop to proxy.ts. The portal requires a real session in all
+  // environments: a guest (no/invalid session — e.g. an expired cookie that
+  // passed proxy.ts but failed /api/me) is sent to the landing page to sign in.
+  // An authenticated user on a page their role can't see is bounced to their
+  // own dashboard.
   useEffect(() => {
+    if (sessionStatus === "loading") return;
+    if (sessionStatus === "guest") {
+      router.replace("/#portal-access");
+      return;
+    }
     if (!canAccess(role, pathname)) {
       router.replace(DEFAULT_DASHBOARD[role]);
     }
-  }, [role, pathname, router]);
+  }, [role, pathname, router, sessionStatus]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

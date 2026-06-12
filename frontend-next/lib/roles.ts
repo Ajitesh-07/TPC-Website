@@ -20,6 +20,12 @@ export type Role = (typeof ROLES)[number];
 /** Cookie the RoleProvider writes and proxy.ts / the root layout read. */
 export const ROLE_COOKIE = "tpc-role";
 
+/** httpOnly session cookie the backend sets at login. Its mere presence means
+ *  "has a session" — proxy.ts uses it to gate portal routes. Real validity is
+ *  enforced by the API on every request; this is just UX routing. Must match the
+ *  backend's SESSION_COOKIE env (default "tpc_session"). */
+export const SESSION_COOKIE = "tpc_session";
+
 /** Role assumed when no cookie is present (first visit / logged-out). */
 export const DEFAULT_ROLE: Role = "student";
 
@@ -106,4 +112,12 @@ export function canAccess(role: Role, pathname: string): boolean {
     (r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`)
   );
   return rule ? rule.roles.includes(role) : true;
+}
+
+/** True when `pathname` is a guarded portal route (matches any ROUTE_ACCESS
+ *  prefix). Used to require a session before entering the portal. */
+export function isPortalRoute(pathname: string): boolean {
+  return ROUTE_ACCESS.some(
+    (r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`)
+  );
 }

@@ -1,13 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
-  BRANCHES,
-  INDUSTRIES,
-  PROCESS_TYPES,
-  DEGREE_TYPES,
-} from "@/data/add-drive";
+  useCompanies,
+  useCreateCompany,
+  useCreateDrive,
+  useMeta,
+  useSubmitDrive,
+} from "@/lib/hooks";
+import type {
+  CreateDrivePayload,
+  ProcessTypeApi,
+  StageTypeApi,
+} from "@/lib/api-types";
+import { INDUSTRIES } from "@/data/add-drive";
 
 const STEPS = [
   "Basic Info",
@@ -37,12 +45,95 @@ const BACK_BUTTON =
 
 const TOTAL_STEPS = STEPS.length;
 
+/** Process-type cards (labels/hints from the original design → API enum values). */
+const PROCESS_TYPE_OPTIONS: {
+  value: ProcessTypeApi;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "internship",
+    label: "Internship",
+    hint: "Fixed-duration internship with a monthly stipend.",
+  },
+  {
+    value: "six_month_fte",
+    label: "6M + FTE",
+    hint: "6-month internship followed by a full-time offer.",
+  },
+  {
+    value: "six_month_ppo",
+    label: "6M + PPO",
+    hint: "6-month internship with a pre-placement offer on performance.",
+  },
+  {
+    value: "fte",
+    label: "FTE",
+    hint: "Direct full-time employment offer.",
+  },
+];
+
+/** "" → undefined, otherwise parsed number (NaN-safe). */
+const num = (value: string): number | undefined => {
+  if (value.trim() === "") return undefined;
+  const n = Number(value);
+  return Number.isNaN(n) ? undefined : n;
+};
+
+/** "YYYY-MM-DD" (date input) → ISO string at local midnight. */
+const toIso = (date: string): string | undefined =>
+  date ? new Date(`${date}T00:00:00`).toISOString() : undefined;
+
 const AddDriveForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [processType, setProcessType] = useState<string>("");
-  const [branches, setBranches] = useState<string[]>([]);
-  const [degrees, setDegrees] = useState<string[]>([]);
+
+  // Step 1 — company
+  const [companyId, setCompanyId] = useState("");
+  const [newCompanyMode, setNewCompanyMode] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [newCompanyWebsite, setNewCompanyWebsite] = useState("");
+  const [newCompanyIndustry, setNewCompanyIndustry] = useState("");
+  // HR point of contact (display-only for now — no API field on the drive yet)
+  const [hrName, setHrName] = useState("");
+  const [hrEmail, setHrEmail] = useState("");
+  const [hrPhone, setHrPhone] = useState("");
+
+  // Step 2 — role
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [openings, setOpenings] = useState("");
+  const [location, setLocation] = useState("");
+  const [ctc, setCtc] = useState("");
+  const [stipend, setStipend] = useState("");
+
+  // Step 3 — process
+  const [processType, setProcessType] = useState<ProcessTypeApi | "">("");
+
+  // Step 4 — eligibility
+  const [branchIds, setBranchIds] = useState<string[]>([]);
+  const [programIds, setProgramIds] = useState<string[]>([]);
+  const [minCpi, setMinCpi] = useState("");
   const [allowBacklog, setAllowBacklog] = useState(false);
+  const [customRules, setCustomRules] = useState("");
+
+  // Step 5 — timeline
+  const [deadline, setDeadline] = useState("");
+  const [oaDate, setOaDate] = useState("");
+  const [interviewDate, setInterviewDate] = useState("");
+  const [resultDate, setResultDate] = useState("");
+
+  // Submission state
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pendingMode, setPendingMode] = useState<"draft" | "submit" | null>(null);
+  const [saved, setSaved] = useState<{ id: string; submitted: boolean } | null>(null);
+
+  const meta = useMeta();
+  const companies = useCompanies();
+  const createCompany = useCreateCompany();
+  const createDrive = useCreateDrive();
+  const submitDrive = useSubmitDrive();
+
+  const saving = pendingMode !== null;
 
   const toggle = (
     value: string,
@@ -58,6 +149,85 @@ const AddDriveForm = () => {
 
   const next = () => setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS));
   const back = () => setCurrentStep((s) => Math.max(s - 1, 1));
+
+  const save = async (mode: "draft" | "submit") => {
+    if (saving || saved) return;
+    setFormError(null);
+
+    if (newCompanyMode ? !newCompanyName.trim() : !companyId) {
+      setFormError(
+        newCompanyMode
+          ? "Enter the new company's name (Basic Info)."
+          : "Select a company or register a new one (Basic Info)."
+      );
+      setCurrentStep(1);
+      return;
+    }
+    if (!title.trim()) {
+      setFormError("Job title is required (Role Specs).");
+      setCurrentStep(2);
+      return;
+    }
+    if (!processType) {
+      setFormError("Choose a process type (Process).");
+      setCurrentStep(3);
+      return;
+    }
+
+    setPendingMode(mode);
+    try {
+      let resolvedCompanyId = companyId;
+      if (newCompanyMode) {
+        const company = await createCompany.mutateAsync({
+          name: newCompanyName.trim(),
+          website: newCompanyWebsite.trim() || undefined,
+          industry: newCompanyIndustry || undefined,
+        });
+        resolvedCompanyId = company.id;
+      }
+
+      const stageDates: { type: StageTypeApi; date: string }[] = [
+        { type: "registration", date: deadline },
+        { type: "online_assessment", date: oaDate },
+        { type: "interview", date: interviewDate },
+        { type: "offer", date: resultDate },
+      ];
+      const payload: CreateDrivePayload = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        processType,
+        location: location.trim() || undefined,
+        ctcLpa: num(ctc),
+        stipendPerMonth: num(stipend),
+        openings: num(openings),
+        minCpi: num(minCpi),
+        allowBacklog,
+        customRules: customRules.trim() || undefined,
+        applicationDeadline: toIso(deadline),
+        branchIds,
+        programIds,
+        skillNames: [],
+        stages: stageDates.map((s, i) => ({
+          type: s.type,
+          sequence: i + 1,
+          scheduledAt: toIso(s.date),
+        })),
+        companyId: resolvedCompanyId,
+      };
+
+      const { id } = await createDrive.mutateAsync(payload);
+      if (mode === "submit") {
+        await submitDrive.mutateAsync(id);
+      }
+      setSaved({ id, submitted: mode === "submit" });
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : "Something went wrong while saving."
+      );
+    } finally {
+      setPendingMode(null);
+    }
+  };
 
   const circleClass = (step: number) => {
     if (step < currentStep)
@@ -96,11 +266,13 @@ const AddDriveForm = () => {
         </div>
         <div className="flex items-center gap-3">
           <button
-            className="px-5 py-2.5 rounded-lg border border-surface-border text-text-primary text-title-md font-title-md hover:bg-surface-container-low hover:border-outline-variant transition-all duration-200 flex items-center gap-2"
+            className="px-5 py-2.5 rounded-lg border border-surface-border text-text-primary text-title-md font-title-md hover:bg-surface-container-low hover:border-outline-variant transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             type="button"
+            disabled={saving || !!saved}
+            onClick={() => save("draft")}
           >
             <span className="material-symbols-outlined text-[18px]">save</span>
-            Save as Draft
+            {pendingMode === "draft" ? "Saving…" : "Save as Draft"}
           </button>
         </div>
       </header>
@@ -144,7 +316,52 @@ const AddDriveForm = () => {
       {/* Form container */}
       <div className="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-surface-border p-6 md:p-10 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary-fixed-dim/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
-        <form className="relative z-10" onSubmit={(e) => e.preventDefault()}>
+
+        {/* Success panel */}
+        {saved ? (
+          <div className="relative z-10 text-center py-14 animate-fadeIn">
+            <span className="material-symbols-outlined text-status-success text-[56px]">
+              check_circle
+            </span>
+            <h2 className="text-headline-md font-headline-md text-text-primary mt-4 mb-2">
+              {saved.submitted
+                ? "Drive submitted for approval"
+                : "Drive saved as draft"}
+            </h2>
+            <p className="text-body-md font-body-md text-text-secondary max-w-md mx-auto mb-8">
+              {saved.submitted
+                ? "The TPC has been notified. You can track its status and manage stages from the Drive Workspace."
+                : "You can keep editing this drive and submit it for approval from the Drive Workspace."}
+            </p>
+            <Link href="/drive-workspace" className={cn(NEXT_BUTTON, "inline-flex")}>
+              Open Drive Workspace
+              <span className="material-symbols-outlined text-[20px]">
+                arrow_forward
+              </span>
+            </Link>
+          </div>
+        ) : (
+        <form
+          className="relative z-10"
+          onSubmit={(e) => {
+            e.preventDefault();
+            // Only the step-5 "Submit for Approval" button submits; Enter on
+            // earlier steps must not fire an accidental submission.
+            if (currentStep === TOTAL_STEPS) save("submit");
+          }}
+        >
+          {/* Inline error (validation / API) */}
+          {formError && (
+            <div className="mb-6 flex items-start gap-3 rounded-xl border border-status-error/20 bg-status-error/10 px-4 py-3">
+              <span className="material-symbols-outlined text-status-error text-[20px] mt-0.5">
+                error
+              </span>
+              <p className="text-label-md font-label-md text-status-error">
+                {formError}
+              </p>
+            </div>
+          )}
+
           {/* STEP 1: Basic Information */}
           {currentStep === 1 && (
             <div className="animate-fadeIn">
@@ -153,57 +370,126 @@ const AddDriveForm = () => {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
                 <div className="relative input-glow">
-                  <label className={FLOATING_LABEL} htmlFor="company_name">
-                    Company Name
-                  </label>
-                  <input
-                    className={FORM_INPUT}
-                    id="company_name"
-                    placeholder="e.g. Google"
-                    type="text"
-                  />
-                </div>
-                <div className="relative input-glow">
-                  <label className={FLOATING_LABEL} htmlFor="industry">
-                    Industry
+                  <label className={FLOATING_LABEL} htmlFor="company_select">
+                    Company
                   </label>
                   <select
-                    className={cn(FORM_INPUT, SELECT_ARROW)}
-                    id="industry"
-                    defaultValue=""
+                    className={cn(FORM_INPUT, SELECT_ARROW, "disabled:opacity-50")}
+                    id="company_select"
+                    value={companyId}
+                    onChange={(e) => setCompanyId(e.target.value)}
+                    disabled={newCompanyMode || companies.isLoading}
                   >
                     <option disabled value="">
-                      Select industry
+                      {companies.isLoading
+                        ? "Loading companies…"
+                        : "Select company"}
                     </option>
-                    {INDUSTRIES.map((industry) => (
-                      <option key={industry} value={industry}>
-                        {industry}
+                    {(companies.data ?? []).map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
                       </option>
                     ))}
                   </select>
                 </div>
-                <div className="relative input-glow">
-                  <label className={FLOATING_LABEL} htmlFor="logo_url">
-                    Company Logo URL
-                  </label>
-                  <input
-                    className={FORM_INPUT}
-                    id="logo_url"
-                    placeholder="https://logo.clearbit.com/google.com"
-                    type="url"
-                  />
+                {/* New company toggle */}
+                <div className="flex items-center justify-between rounded-lg border border-surface-border px-4 py-3.5">
+                  <div>
+                    <span className="block text-body-md font-body-md text-text-primary">
+                      New Company
+                    </span>
+                    <span className="block text-label-sm font-label-sm text-text-secondary">
+                      Not listed? Register it with this drive.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={newCompanyMode}
+                    onClick={() => setNewCompanyMode((v) => !v)}
+                    className={cn(
+                      "relative w-11 h-6 rounded-full transition-colors shrink-0",
+                      newCompanyMode ? "bg-primary" : "bg-surface-variant"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface-container-lowest shadow-sm transition-transform",
+                        newCompanyMode && "translate-x-5"
+                      )}
+                    ></span>
+                  </button>
                 </div>
-                <div className="relative input-glow">
-                  <label className={FLOATING_LABEL} htmlFor="website">
-                    Website
-                  </label>
-                  <input
-                    className={FORM_INPUT}
-                    id="website"
-                    placeholder="https://careers.google.com"
-                    type="url"
-                  />
-                </div>
+
+                {companies.isError && (
+                  <div className="md:col-span-2 flex items-center gap-3 rounded-xl border border-status-error/20 bg-status-error/10 px-4 py-3">
+                    <span className="material-symbols-outlined text-status-error text-[20px]">
+                      error
+                    </span>
+                    <p className="flex-1 text-label-md font-label-md text-status-error">
+                      Couldn&rsquo;t load the company list.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => companies.refetch()}
+                      className="shrink-0 px-3 py-1.5 rounded-lg border border-status-error/30 text-status-error text-label-md font-label-md hover:bg-status-error/10 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+
+                {newCompanyMode && (
+                  <>
+                    <div className="relative input-glow">
+                      <label className={FLOATING_LABEL} htmlFor="company_name">
+                        Company Name
+                      </label>
+                      <input
+                        className={FORM_INPUT}
+                        id="company_name"
+                        placeholder="e.g. Google"
+                        type="text"
+                        value={newCompanyName}
+                        onChange={(e) => setNewCompanyName(e.target.value)}
+                      />
+                    </div>
+                    <div className="relative input-glow">
+                      <label className={FLOATING_LABEL} htmlFor="industry">
+                        Industry
+                      </label>
+                      <select
+                        className={cn(FORM_INPUT, SELECT_ARROW)}
+                        id="industry"
+                        value={newCompanyIndustry}
+                        onChange={(e) => setNewCompanyIndustry(e.target.value)}
+                      >
+                        <option disabled value="">
+                          Select industry
+                        </option>
+                        {INDUSTRIES.map((industry) => (
+                          <option key={industry} value={industry}>
+                            {industry}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="relative input-glow md:col-span-2">
+                      <label className={FLOATING_LABEL} htmlFor="website">
+                        Website
+                      </label>
+                      <input
+                        className={FORM_INPUT}
+                        id="website"
+                        placeholder="https://careers.google.com"
+                        type="url"
+                        value={newCompanyWebsite}
+                        onChange={(e) => setNewCompanyWebsite(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div className="md:col-span-2 border border-surface-border rounded-xl p-5 bg-surface/50 mt-2">
                   <h3 className="text-title-md font-title-md text-text-primary mb-4 flex items-center gap-2">
                     <span className="material-symbols-outlined text-gold-muted text-[20px]">
@@ -224,6 +510,8 @@ const AddDriveForm = () => {
                         id="hr_name"
                         placeholder="Full name"
                         type="text"
+                        value={hrName}
+                        onChange={(e) => setHrName(e.target.value)}
                       />
                     </div>
                     <div className="relative input-glow">
@@ -238,6 +526,8 @@ const AddDriveForm = () => {
                         id="hr_email"
                         placeholder="hr@company.com"
                         type="email"
+                        value={hrEmail}
+                        onChange={(e) => setHrEmail(e.target.value)}
                       />
                     </div>
                     <div className="relative input-glow">
@@ -252,6 +542,8 @@ const AddDriveForm = () => {
                         id="hr_phone"
                         placeholder="+91 ..."
                         type="tel"
+                        value={hrPhone}
+                        onChange={(e) => setHrPhone(e.target.value)}
                       />
                     </div>
                   </div>
@@ -284,6 +576,8 @@ const AddDriveForm = () => {
                     id="job_title"
                     placeholder="e.g. Software Engineer (SDE I)"
                     type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
                   />
                 </div>
                 <div className="relative input-glow md:col-span-2">
@@ -295,6 +589,8 @@ const AddDriveForm = () => {
                     id="role_desc"
                     placeholder="Responsibilities, tech stack, expectations..."
                     rows={5}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                   ></textarea>
                 </div>
                 <div className="relative input-glow">
@@ -307,6 +603,8 @@ const AddDriveForm = () => {
                     placeholder="e.g. 10"
                     type="number"
                     min={1}
+                    value={openings}
+                    onChange={(e) => setOpenings(e.target.value)}
                   />
                 </div>
                 <div className="relative input-glow">
@@ -318,6 +616,8 @@ const AddDriveForm = () => {
                     id="location"
                     placeholder="e.g. Bangalore, Remote"
                     type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
                   />
                 </div>
                 <div className="md:col-span-2 border border-surface-border rounded-xl p-5 bg-surface/50 mt-2">
@@ -341,6 +641,8 @@ const AddDriveForm = () => {
                         placeholder="0.00"
                         type="number"
                         step="0.1"
+                        value={ctc}
+                        onChange={(e) => setCtc(e.target.value)}
                       />
                     </div>
                     <div className="relative input-glow">
@@ -355,6 +657,8 @@ const AddDriveForm = () => {
                         id="stipend"
                         placeholder="Optional"
                         type="number"
+                        value={stipend}
+                        onChange={(e) => setStipend(e.target.value)}
                       />
                     </div>
                   </div>
@@ -387,7 +691,7 @@ const AddDriveForm = () => {
                 Select how this drive is structured.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {PROCESS_TYPES.map((option) => {
+                {PROCESS_TYPE_OPTIONS.map((option) => {
                   const selected = processType === option.value;
                   return (
                     <button
@@ -413,11 +717,9 @@ const AddDriveForm = () => {
                         <span className="block text-title-md font-title-md text-text-primary">
                           {option.label}
                         </span>
-                        {option.hint && (
-                          <span className="block text-label-md font-label-md text-text-secondary mt-1">
-                            {option.hint}
-                          </span>
-                        )}
+                        <span className="block text-label-md font-label-md text-text-secondary mt-1">
+                          {option.hint}
+                        </span>
                       </span>
                     </button>
                   );
@@ -455,42 +757,66 @@ const AddDriveForm = () => {
                   <h3 className="text-title-md font-title-md text-text-primary mb-3">
                     Eligible Branches
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {BRANCHES.map((branch) => {
-                      const checked = branches.includes(branch);
-                      return (
-                        <label
-                          key={branch}
-                          className={cn(
-                            "flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors",
-                            checked
-                              ? "border-primary bg-primary/5"
-                              : "border-surface-border hover:bg-surface-container-low"
-                          )}
-                        >
-                          <input
-                            type="checkbox"
-                            className="sr-only"
-                            checked={checked}
-                            onChange={() =>
-                              toggle(branch, branches, setBranches)
-                            }
-                          />
-                          <span
+                  {meta.isLoading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 animate-pulse">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="h-12 rounded-lg bg-surface-variant" />
+                      ))}
+                    </div>
+                  ) : meta.isError ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-status-error/20 bg-status-error/10 px-4 py-3">
+                      <span className="material-symbols-outlined text-status-error text-[20px]">
+                        error
+                      </span>
+                      <p className="flex-1 text-label-md font-label-md text-status-error">
+                        Couldn&rsquo;t load branches and programmes.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => meta.refetch()}
+                        className="shrink-0 px-3 py-1.5 rounded-lg border border-status-error/30 text-status-error text-label-md font-label-md hover:bg-status-error/10 transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(meta.data?.branches ?? []).map((branch) => {
+                        const checked = branchIds.includes(branch.id);
+                        return (
+                          <label
+                            key={branch.id}
                             className={cn(
-                              "material-symbols-outlined text-[20px]",
-                              checked ? "text-primary" : "text-text-secondary"
+                              "flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors",
+                              checked
+                                ? "border-primary bg-primary/5"
+                                : "border-surface-border hover:bg-surface-container-low"
                             )}
                           >
-                            {checked ? "check_box" : "check_box_outline_blank"}
-                          </span>
-                          <span className="text-body-md font-body-md text-text-primary">
-                            {branch}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={checked}
+                              onChange={() =>
+                                toggle(branch.id, branchIds, setBranchIds)
+                              }
+                            />
+                            <span
+                              className={cn(
+                                "material-symbols-outlined text-[20px]",
+                                checked ? "text-primary" : "text-text-secondary"
+                              )}
+                            >
+                              {checked ? "check_box" : "check_box_outline_blank"}
+                            </span>
+                            <span className="text-body-md font-body-md text-text-primary">
+                              {branch.name} ({branch.code})
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -507,6 +833,8 @@ const AddDriveForm = () => {
                       step="0.1"
                       min={0}
                       max={10}
+                      value={minCpi}
+                      onChange={(e) => setMinCpi(e.target.value)}
                     />
                   </div>
                   {/* Allow backlog toggle */}
@@ -544,37 +872,45 @@ const AddDriveForm = () => {
                   <h3 className="text-title-md font-title-md text-text-primary mb-3">
                     Degree Type
                   </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {DEGREE_TYPES.map((degree) => {
-                      const checked = degrees.includes(degree);
-                      return (
-                        <label
-                          key={degree}
-                          className={cn(
-                            "flex items-center gap-2 rounded-full border px-4 py-2 cursor-pointer transition-colors",
-                            checked
-                              ? "border-primary bg-primary/5 text-primary"
-                              : "border-surface-border text-text-secondary hover:bg-surface-container-low"
-                          )}
-                        >
-                          <input
-                            type="checkbox"
-                            className="sr-only"
-                            checked={checked}
-                            onChange={() =>
-                              toggle(degree, degrees, setDegrees)
-                            }
-                          />
-                          <span className="material-symbols-outlined text-[18px]">
-                            {checked ? "check_circle" : "radio_button_unchecked"}
-                          </span>
-                          <span className="text-label-md font-label-md">
-                            {degree}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                  {meta.isLoading ? (
+                    <div className="flex flex-wrap gap-2 animate-pulse">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="h-10 w-28 rounded-full bg-surface-variant" />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {(meta.data?.programs ?? []).map((program) => {
+                        const checked = programIds.includes(program.id);
+                        return (
+                          <label
+                            key={program.id}
+                            className={cn(
+                              "flex items-center gap-2 rounded-full border px-4 py-2 cursor-pointer transition-colors",
+                              checked
+                                ? "border-primary bg-primary/5 text-primary"
+                                : "border-surface-border text-text-secondary hover:bg-surface-container-low"
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={checked}
+                              onChange={() =>
+                                toggle(program.id, programIds, setProgramIds)
+                              }
+                            />
+                            <span className="material-symbols-outlined text-[18px]">
+                              {checked ? "check_circle" : "radio_button_unchecked"}
+                            </span>
+                            <span className="text-label-md font-label-md">
+                              {program.name}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Custom rules */}
@@ -587,6 +923,8 @@ const AddDriveForm = () => {
                     id="custom_rules"
                     placeholder="Any additional eligibility constraints..."
                     rows={3}
+                    value={customRules}
+                    onChange={(e) => setCustomRules(e.target.value)}
                   ></textarea>
                 </div>
               </div>
@@ -622,25 +960,49 @@ const AddDriveForm = () => {
                   <label className={FLOATING_LABEL} htmlFor="deadline">
                     Application Deadline
                   </label>
-                  <input className={FORM_INPUT} id="deadline" type="date" />
+                  <input
+                    className={FORM_INPUT}
+                    id="deadline"
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                  />
                 </div>
                 <div className="relative input-glow">
                   <label className={FLOATING_LABEL} htmlFor="oa_date">
                     Online Assessment
                   </label>
-                  <input className={FORM_INPUT} id="oa_date" type="date" />
+                  <input
+                    className={FORM_INPUT}
+                    id="oa_date"
+                    type="date"
+                    value={oaDate}
+                    onChange={(e) => setOaDate(e.target.value)}
+                  />
                 </div>
                 <div className="relative input-glow">
                   <label className={FLOATING_LABEL} htmlFor="interview_date">
                     Interview
                   </label>
-                  <input className={FORM_INPUT} id="interview_date" type="date" />
+                  <input
+                    className={FORM_INPUT}
+                    id="interview_date"
+                    type="date"
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                  />
                 </div>
                 <div className="relative input-glow">
                   <label className={FLOATING_LABEL} htmlFor="result_date">
                     Result / Offer
                   </label>
-                  <input className={FORM_INPUT} id="result_date" type="date" />
+                  <input
+                    className={FORM_INPUT}
+                    id="result_date"
+                    type="date"
+                    value={resultDate}
+                    onChange={(e) => setResultDate(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -664,19 +1026,24 @@ const AddDriveForm = () => {
                 </button>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
-                    className="px-5 py-3 rounded-lg border border-surface-border text-text-primary text-title-md font-title-md hover:bg-surface-container-low hover:border-outline-variant transition-all duration-200 flex items-center gap-2"
+                    className="px-5 py-3 rounded-lg border border-surface-border text-text-primary text-title-md font-title-md hover:bg-surface-container-low hover:border-outline-variant transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     type="button"
+                    disabled={saving}
+                    onClick={() => save("draft")}
                   >
                     <span className="material-symbols-outlined text-[18px]">
                       save
                     </span>
-                    Save as Draft
+                    {pendingMode === "draft" ? "Saving…" : "Save as Draft"}
                   </button>
                   <button
-                    className="bg-status-success text-on-primary text-title-md font-title-md px-8 py-3 rounded-lg shadow-sm hover:opacity-90 transition-all flex items-center gap-2"
+                    className="bg-status-success text-on-primary text-title-md font-title-md px-8 py-3 rounded-lg shadow-sm hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     type="submit"
+                    disabled={saving}
                   >
-                    Submit for Approval
+                    {pendingMode === "submit"
+                      ? "Submitting…"
+                      : "Submit for Approval"}
                     <span className="material-symbols-outlined">
                       check_circle
                     </span>
@@ -686,6 +1053,7 @@ const AddDriveForm = () => {
             </div>
           )}
         </form>
+        )}
       </div>
     </div>
   );

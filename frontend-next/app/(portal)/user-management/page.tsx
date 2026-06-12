@@ -1,17 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
+import { ApiError } from "@/lib/api";
 import {
-  ROLE_OPTIONS,
-  MANAGED_USERS,
-  APPROVED_EMAILS,
-  UPLOAD_HISTORY,
-  type ManagedUser,
-  type UploadRecord,
-} from "@/data/user-management";
+  useAddApprovedEmail,
+  useAdminUsers,
+  useApprovedEmails,
+  useDeleteApprovedEmail,
+  useUpdateAdminUser,
+} from "@/lib/hooks";
+import type { AdminUserRow, ApiRole } from "@/lib/api-types";
 
 type TabKey = "users" | "emails" | "upload";
 
@@ -21,57 +22,135 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: "upload", label: "Master Data Upload", icon: "cloud_upload" },
 ];
 
+/** Role options in API slug form (the per-row select PATCHes these values). */
+const ROLE_OPTIONS: { value: ApiRole; label: string }[] = [
+  { value: "student", label: "Student" },
+  { value: "company", label: "Company" },
+  { value: "coordinator", label: "Coordinator" },
+  { value: "admin", label: "Admin" },
+  { value: "super_admin", label: "Super Admin" },
+];
+
+const roleLabel = (role: string) =>
+  ROLE_OPTIONS.find((o) => o.value === role)?.label ?? role;
+
+/** "Aarav Sharma" → "AS". */
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join("") || "?";
+
+/** Debounce a changing value (for search-as-you-type). */
+function useDebounced<T>(value: T, ms = 350): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={cn("animate-pulse bg-surface-variant rounded-lg", className)} />
+);
+
+const ErrorPanel = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-status-error/10 border border-status-error/20 rounded-xl px-4 py-3">
+    <span className="text-body-md font-body-md text-status-error flex items-center gap-2">
+      <span className="material-symbols-outlined text-[18px]">error</span>
+      {message}
+    </span>
+    <button
+      onClick={onRetry}
+      className="self-start sm:self-auto shrink-0 px-3 py-1.5 rounded-lg border border-status-error/30 text-status-error text-label-md font-label-md hover:bg-status-error/10 transition-colors"
+    >
+      Retry
+    </button>
+  </div>
+);
+
 const UserManagement = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("users");
 
   // Users & Roles
-  const [users, setUsers] = useState<ManagedUser[]>(MANAGED_USERS);
   const [query, setQuery] = useState("");
+  const search = useDebounced(query);
+  const [roleFilter, setRoleFilter] = useState("");
+  const [page, setPage] = useState(1);
 
-  // Approved Emails
-  const [emails, setEmails] = useState<string[]>(APPROVED_EMAILS);
-  const [newEmail, setNewEmail] = useState("");
+  const usersQ = useAdminUsers({
+    search: search || undefined,
+    role: roleFilter || undefined,
+    page,
+  });
+  const updateUser = useUpdateAdminUser();
+  const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
 
-  const visibleUsers = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  const users = usersQ.data?.items ?? [];
+  const usersTotal = usersQ.data?.total ?? 0;
+  const usersPageSize = usersQ.data?.pageSize ?? 20;
+  const usersStart = usersTotal === 0 ? 0 : (page - 1) * usersPageSize + 1;
+  const usersEnd = Math.min(page * usersPageSize, usersTotal);
+
+  const changeRole = (u: AdminUserRow, role: string) => {
+    setRowError(null);
+    updateUser.mutate(
+      { id: u.id, role },
+      {
+        onError: (err) => {
+          const companyConflict =
+            role === "company" &&
+            err instanceof ApiError &&
+            (err.status === 400 || err.status === 409);
+          setRowError({
+            id: u.id,
+            message: companyConflict
+              ? "Needs a company — provision via the recruiter flow instead."
+              : err.message,
+          });
+        },
+      }
     );
-  }, [users, query]);
-
-  const changeRole = (id: string, role: string) =>
-    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)));
-
-  const toggleStatus = (id: string) =>
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === id
-          ? { ...u, status: u.status === "Active" ? "Revoked" : "Active" }
-          : u
-      )
-    );
-
-  const addEmail = () => {
-    const value = newEmail.trim().toLowerCase();
-    if (!value || emails.includes(value)) return;
-    setEmails((prev) => [...prev, value]);
-    setNewEmail("");
   };
 
-  const removeEmail = (value: string) =>
-    setEmails((prev) => prev.filter((e) => e !== value));
+  const setUserStatus = (u: AdminUserRow, status: "active" | "revoked") => {
+    setRowError(null);
+    updateUser.mutate(
+      { id: u.id, status },
+      { onError: (err) => setRowError({ id: u.id, message: err.message }) }
+    );
+  };
 
-  const USER_COLUMNS: Column<ManagedUser>[] = [
+  // Approved Emails
+  const emailsQ = useApprovedEmails();
+  const addEmail = useAddApprovedEmail();
+  const deleteEmail = useDeleteApprovedEmail();
+  const [newKind, setNewKind] = useState<"exact" | "domain">("domain");
+  const [newValue, setNewValue] = useState("");
+  const [newRoleHint, setNewRoleHint] = useState("");
+
+  const submitEmail = () => {
+    const value = newValue.trim().toLowerCase();
+    if (!value || addEmail.isPending) return;
+    addEmail.mutate(
+      { kind: newKind, value, roleHint: newRoleHint || undefined },
+      { onSuccess: () => setNewValue("") }
+    );
+  };
+
+  const USER_COLUMNS: Column<AdminUserRow>[] = [
     {
       header: "Name",
       className: "py-3 px-4",
       render: (u) => (
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-fixed text-primary flex items-center justify-center text-label-md font-label-md font-bold shrink-0">
-            {u.initials}
+            {initialsOf(u.fullName)}
           </div>
-          <span className="font-medium text-text-primary">{u.name}</span>
+          <span className="font-medium text-text-primary">{u.fullName}</span>
         </div>
       ),
     },
@@ -83,32 +162,48 @@ const UserManagement = () => {
     {
       header: "Current Role",
       className: "py-3 px-4",
-      render: (u) => (
-        <select
-          value={u.role}
-          onChange={(e) => changeRole(u.id, e.target.value)}
-          aria-label={`Role for ${u.name}`}
-          className="bg-surface-container-low border border-surface-border rounded-lg px-3 py-1.5 text-label-md font-label-md text-text-primary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all cursor-pointer"
-        >
-          {ROLE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      ),
+      render: (u) => {
+        const busy = updateUser.isPending && updateUser.variables?.id === u.id;
+        return (
+          <div>
+            <select
+              value={u.role}
+              onChange={(e) => changeRole(u, e.target.value)}
+              disabled={busy}
+              aria-label={`Role for ${u.fullName}`}
+              className="bg-surface-container-low border border-surface-border rounded-lg px-3 py-1.5 text-label-md font-label-md text-text-primary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {ROLE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            {rowError?.id === u.id && (
+              <p className="text-label-sm font-label-sm text-status-error mt-1 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">error</span>
+                {rowError.message}
+              </p>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: "Status",
       className: "py-3 px-4",
       render: (u) =>
-        u.status === "Active" ? (
+        u.status === "active" ? (
           <StatusBadge tone="success" icon="check_circle" bordered>
             Active
           </StatusBadge>
-        ) : (
+        ) : u.status === "revoked" ? (
           <StatusBadge tone="error" icon="block" bordered>
             Revoked
+          </StatusBadge>
+        ) : (
+          <StatusBadge tone="warning" icon="hourglass_empty" bordered>
+            Pending
           </StatusBadge>
         ),
     },
@@ -116,62 +211,34 @@ const UserManagement = () => {
       header: "Action",
       headerClassName: "text-right",
       className: "py-3 px-4 text-right",
-      render: (u) =>
-        u.status === "Active" ? (
-          <button
-            onClick={() => toggleStatus(u.id)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-status-error/30 text-status-error text-label-md font-label-md hover:bg-status-error/10 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[16px]">block</span>
-            Revoke
-          </button>
-        ) : (
-          <button
-            onClick={() => toggleStatus(u.id)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-status-success/30 text-status-success text-label-md font-label-md hover:bg-status-success/10 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[16px]">restart_alt</span>
-            Restore
-          </button>
-        ),
-    },
-  ];
-
-  const UPLOAD_COLUMNS: Column<UploadRecord>[] = [
-    {
-      header: "File Name",
-      className: "py-3 px-4",
-      render: (r) => (
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-primary text-[20px]">
-            description
-          </span>
-          <span className="font-medium text-text-primary">{r.fileName}</span>
-        </div>
-      ),
-    },
-    {
-      header: "Type",
-      className: "py-3 px-4",
-      render: (r) => (
-        <StatusBadge tone="info">{r.type}</StatusBadge>
-      ),
-    },
-    {
-      header: "Uploaded By",
-      className: "py-3 px-4 text-text-secondary text-body-md font-body-md",
-      render: (r) => r.uploadedBy,
-    },
-    {
-      header: "Date",
-      className: "py-3 px-4 text-text-secondary text-body-md font-body-md",
-      render: (r) => r.date,
-    },
-    {
-      header: "Rows",
-      headerClassName: "text-right",
-      className: "py-3 px-4 text-right font-mono text-sm text-on-surface",
-      render: (r) => r.rows.toLocaleString(),
+      render: (u) => {
+        const busy = updateUser.isPending && updateUser.variables?.id === u.id;
+        if (u.status === "active") {
+          return (
+            <button
+              onClick={() => setUserStatus(u, "revoked")}
+              disabled={busy}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-status-error/30 text-status-error text-label-md font-label-md hover:bg-status-error/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined text-[16px]">block</span>
+              {busy && updateUser.variables?.status === "revoked" ? "Revoking…" : "Revoke"}
+            </button>
+          );
+        }
+        if (u.status === "revoked") {
+          return (
+            <button
+              onClick={() => setUserStatus(u, "active")}
+              disabled={busy}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-status-success/30 text-status-success text-label-md font-label-md hover:bg-status-success/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+              {busy && updateUser.variables?.status === "active" ? "Restoring…" : "Restore"}
+            </button>
+          );
+        }
+        return <span className="text-text-secondary">—</span>;
+      },
     },
   ];
 
@@ -223,20 +290,54 @@ const UserManagement = () => {
                     Reassign roles and control portal access per user.
                   </p>
                 </div>
-                <div className="relative w-full sm:w-72">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
-                    search
-                  </span>
-                  <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-surface-border rounded-xl text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all"
-                    placeholder="Search by name or email..."
-                    type="text"
-                  />
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => {
+                      setRoleFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    aria-label="Filter by role"
+                    className="bg-surface-container-low border border-surface-border rounded-xl px-3 py-2 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="">All roles</option>
+                    {ROLE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="relative w-full sm:w-72">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
+                      search
+                    </span>
+                    <input
+                      value={query}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        setPage(1);
+                      }}
+                      className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-surface-border rounded-xl text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all"
+                      placeholder="Search by name or email..."
+                      type="text"
+                    />
+                  </div>
                 </div>
               </div>
-              {visibleUsers.length === 0 ? (
+              {usersQ.isLoading ? (
+                <div className="p-5 space-y-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 rounded-lg" />
+                  ))}
+                </div>
+              ) : usersQ.isError ? (
+                <div className="p-5">
+                  <ErrorPanel
+                    message={usersQ.error?.message ?? "Failed to load users."}
+                    onRetry={() => usersQ.refetch()}
+                  />
+                </div>
+              ) : users.length === 0 ? (
                 <div className="text-center py-16 text-text-secondary">
                   <span className="material-symbols-outlined text-[40px] opacity-50">
                     person_search
@@ -246,7 +347,7 @@ const UserManagement = () => {
               ) : (
                 <DataTable
                   columns={USER_COLUMNS}
-                  rows={visibleUsers}
+                  rows={users}
                   theadClassName="bg-surface-container text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
                   thClassName="py-3 px-4 font-semibold border-b border-surface-border"
                   rowClassName={(_, i) =>
@@ -257,8 +358,32 @@ const UserManagement = () => {
                   }
                 />
               )}
-              <div className="p-3 bg-surface-bright text-label-sm text-text-secondary">
-                Showing {visibleUsers.length} of {users.length} users
+              <div className="p-3 bg-surface-bright flex justify-between items-center text-label-sm text-text-secondary">
+                <span>
+                  Showing {usersStart}-{usersEnd} of {usersTotal} users
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="p-1 hover:bg-surface-variant rounded disabled:opacity-50"
+                    disabled={page <= 1 || usersQ.isLoading}
+                    aria-label="Previous page"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      chevron_left
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => p + 1)}
+                    className="p-1 hover:bg-surface-variant rounded disabled:opacity-50"
+                    disabled={page * usersPageSize >= usersTotal || usersQ.isLoading}
+                    aria-label="Next page"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      chevron_right
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -278,58 +403,127 @@ const UserManagement = () => {
               </div>
               <div className="p-5 space-y-5">
                 <div className="flex flex-col sm:flex-row gap-3">
+                  <select
+                    value={newKind}
+                    onChange={(e) => setNewKind(e.target.value as "exact" | "domain")}
+                    aria-label="Entry kind"
+                    className="bg-surface-container-low border border-surface-border rounded-xl px-3 py-2.5 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="domain">Domain</option>
+                    <option value="exact">Exact</option>
+                  </select>
                   <div className="relative flex-1">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">
                       alternate_email
                     </span>
                     <input
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
+                      value={newValue}
+                      onChange={(e) => setNewValue(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
-                          addEmail();
+                          submitEmail();
                         }
                       }}
                       className="w-full pl-10 pr-4 py-2.5 bg-surface-container-low border border-surface-border rounded-xl text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all"
-                      placeholder="e.g. @iitp.ac.in or name@iitp.ac.in"
+                      placeholder={
+                        newKind === "domain" ? "e.g. iitp.ac.in" : "e.g. name@iitp.ac.in"
+                      }
                       type="text"
                     />
                   </div>
+                  <select
+                    value={newRoleHint}
+                    onChange={(e) => setNewRoleHint(e.target.value)}
+                    aria-label="Role hint (optional)"
+                    className="bg-surface-container-low border border-surface-border rounded-xl px-3 py-2.5 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="">No role hint</option>
+                    {ROLE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                   <button
-                    onClick={addEmail}
-                    disabled={!newEmail.trim()}
+                    onClick={submitEmail}
+                    disabled={!newValue.trim() || addEmail.isPending}
                     className="btn-gradient text-on-primary px-5 py-2.5 rounded-lg text-title-md font-title-md shadow-sm hover-lift inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:translate-y-0"
                   >
                     <span className="material-symbols-outlined text-[20px]">add</span>
-                    Add
+                    {addEmail.isPending ? "Adding…" : "Add"}
                   </button>
                 </div>
 
-                <ul className="divide-y divide-surface-border rounded-xl border border-surface-border overflow-hidden">
-                  {emails.map((email) => (
-                    <li
-                      key={email}
-                      className="flex items-center justify-between gap-3 px-4 py-3 bg-surface-container-lowest hover:bg-surface-container-low transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="material-symbols-outlined text-primary text-[18px]">
-                          {email.startsWith("@") ? "domain" : "mail"}
-                        </span>
-                        <span className="text-body-md font-body-md text-text-primary truncate">
-                          {email}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => removeEmail(email)}
-                        aria-label={`Remove ${email}`}
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-text-secondary hover:text-status-error hover:bg-status-error/10 transition-colors shrink-0"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">close</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                {addEmail.isError && (
+                  <p className="text-label-sm font-label-sm text-status-error flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">error</span>
+                    {addEmail.error.message}
+                  </p>
+                )}
+                {deleteEmail.isError && (
+                  <p className="text-label-sm font-label-sm text-status-error flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">error</span>
+                    {deleteEmail.error.message}
+                  </p>
+                )}
+
+                {emailsQ.isLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-12 rounded-lg" />
+                    ))}
+                  </div>
+                ) : emailsQ.isError ? (
+                  <ErrorPanel
+                    message={emailsQ.error?.message ?? "Failed to load the approved list."}
+                    onRetry={() => emailsQ.refetch()}
+                  />
+                ) : (emailsQ.data?.length ?? 0) === 0 ? (
+                  <div className="text-center py-10 text-text-secondary rounded-xl border border-surface-border">
+                    <span className="material-symbols-outlined text-[36px] opacity-50">
+                      alternate_email
+                    </span>
+                    <p className="text-title-md font-title-md mt-2">
+                      No approved emails or domains yet
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-surface-border rounded-xl border border-surface-border overflow-hidden">
+                    {emailsQ.data?.map((entry) => {
+                      const removing =
+                        deleteEmail.isPending && deleteEmail.variables === entry.id;
+                      return (
+                        <li
+                          key={entry.id}
+                          className="flex items-center justify-between gap-3 px-4 py-3 bg-surface-container-lowest hover:bg-surface-container-low transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="material-symbols-outlined text-primary text-[18px]">
+                              {entry.kind === "domain" ? "domain" : "mail"}
+                            </span>
+                            <span className="text-body-md font-body-md text-text-primary truncate">
+                              {entry.kind === "domain" ? `@${entry.value.replace(/^@/, "")}` : entry.value}
+                            </span>
+                            {entry.roleHint && (
+                              <StatusBadge tone="info">{roleLabel(entry.roleHint)}</StatusBadge>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => deleteEmail.mutate(entry.id)}
+                            disabled={removing}
+                            aria-label={`Remove ${entry.value}`}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-text-secondary hover:text-status-error hover:bg-status-error/10 transition-colors shrink-0 disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">
+                              {removing ? "hourglass_empty" : "close"}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
             </div>
           </div>
@@ -361,37 +555,20 @@ const UserManagement = () => {
                     CSV, XLSX up to 10MB
                   </span>
                 </div>
-                <div className="flex justify-end">
-                  <button className="btn-gradient text-on-primary px-6 py-2.5 rounded-lg text-title-md font-title-md shadow-sm hover-lift inline-flex items-center gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-label-sm font-label-sm text-text-secondary flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">info</span>
+                    Processing pipeline — phase 2
+                  </span>
+                  <button
+                    disabled
+                    className="btn-gradient text-on-primary px-6 py-2.5 rounded-lg text-title-md font-title-md shadow-sm inline-flex items-center gap-2 opacity-50 cursor-not-allowed"
+                  >
                     <span className="material-symbols-outlined text-[20px]">upload</span>
                     Upload
                   </button>
                 </div>
               </div>
-            </div>
-
-            {/* Recent uploads */}
-            <div className="bg-surface-container-lowest rounded-xl border border-surface-border elevation-1 overflow-hidden">
-              <div className="p-5 border-b border-surface-border bg-surface-bright">
-                <h3 className="text-title-md font-title-md text-primary">
-                  Recent Uploads
-                </h3>
-                <p className="text-label-md font-label-md text-text-secondary">
-                  History of imported master data files.
-                </p>
-              </div>
-              <DataTable
-                columns={UPLOAD_COLUMNS}
-                rows={UPLOAD_HISTORY}
-                theadClassName="bg-surface-container text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
-                thClassName="py-3 px-4 font-semibold border-b border-surface-border"
-                rowClassName={(_, i) =>
-                  cn(
-                    "border-b border-surface-border hover:bg-surface-container-low transition-colors text-body-md font-body-md text-on-surface",
-                    i % 2 === 1 && "bg-neutral-50/50"
-                  )
-                }
-              />
             </div>
           </div>
         )}

@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import { useCreateEvent, useDeleteEvent, useEvents } from "@/lib/hooks";
+import type { ApiEvent, EventTypeApi } from "@/lib/api-types";
 
 /* ------------------------------------------------------------------ */
-/* Shared, role-agnostic calendar. Pass in whichever events the        */
-/* current user should see; the UI is identical across roles.          */
+/* Shared, role-agnostic calendar. By default it loads the current     */
+/* user's events live from the API (role scoping happens server-side); */
+/* pass `initialEvents` for a static/mock event set instead.           */
 /* ------------------------------------------------------------------ */
 
-export type EventType = "PPT" | "OA" | "Interview" | "Deadline" | "Result";
+export type EventType = "PPT" | "OA" | "Interview" | "Deadline" | "Result" | "Other";
 
 export interface CalendarEvent {
   id: string;
@@ -21,6 +24,8 @@ export interface CalendarEvent {
   end?: string;
   location?: string;
   detail?: string;
+  /** API event scope; "personal" events get a delete affordance. */
+  scope?: ApiEvent["scope"];
 }
 
 export const EVENT_CONFIG: Record<EventType, { label: string; dot: string; badge: string }> = {
@@ -29,6 +34,7 @@ export const EVENT_CONFIG: Record<EventType, { label: string; dot: string; badge
   Interview: { label: "Interview", dot: "bg-status-success", badge: "bg-status-success/10 text-status-success" },
   Deadline: { label: "Deadline", dot: "bg-status-error", badge: "bg-status-error/10 text-status-error" },
   Result: { label: "Result / Announcement", dot: "bg-primary", badge: "bg-primary-fixed text-on-primary-fixed" },
+  Other: { label: "Other", dot: "bg-outline", badge: "bg-surface-variant text-on-surface-variant" },
 };
 
 const EVENT_TYPES = Object.keys(EVENT_CONFIG) as EventType[];
@@ -38,6 +44,48 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/* ---------- API <-> UI mapping ---------- */
+
+const API_TO_UI_TYPE: Record<EventTypeApi, EventType> = {
+  ppt: "PPT",
+  oa: "OA",
+  interview: "Interview",
+  deadline: "Deadline",
+  result: "Result",
+  other: "Other",
+};
+
+const UI_TO_API_TYPE: Record<EventType, EventTypeApi> = {
+  PPT: "ppt",
+  OA: "oa",
+  Interview: "interview",
+  Deadline: "deadline",
+  Result: "result",
+  Other: "other",
+};
+
+const fromApiEvent = (e: ApiEvent): CalendarEvent => ({
+  id: e.id,
+  type: API_TO_UI_TYPE[e.type],
+  title: e.title,
+  date: e.eventDate,
+  start: e.startTime ?? undefined,
+  end: e.endTime ?? undefined,
+  location: e.location ?? undefined,
+  detail: e.detail ?? undefined,
+  scope: e.scope,
+});
+
+/** What the Add Event modal collects (no id/scope — the caller decides those). */
+interface EventDraft {
+  type: EventType;
+  title: string;
+  date: string;
+  start?: string;
+  end?: string;
+  location?: string;
+}
 
 /* ---------- date + export helpers ---------- */
 
@@ -94,13 +142,105 @@ const buildICS = (events: CalendarEvent[]) => {
 const inputClass =
   "w-full bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all";
 
-interface CalendarViewProps {
-  initialEvents: CalendarEvent[];
-  /** Initial month shown (defaults to month of the first event, else Jan). */
-  defaultMonth?: { year: number; month: number };
+interface MonthRef {
+  year: number;
+  /** 0-based month, like Date#getMonth(). */
+  month: number;
 }
 
-const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
+interface CalendarViewProps {
+  /** Static event set (back-compat). Omit to load live events from the API. */
+  initialEvents?: CalendarEvent[];
+  /** Initial month shown (defaults to month of the first event, else today). */
+  defaultMonth?: MonthRef;
+}
+
+const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) =>
+  initialEvents ? (
+    <StaticCalendar initialEvents={initialEvents} defaultMonth={defaultMonth} />
+  ) : (
+    <LiveCalendar defaultMonth={defaultMonth} />
+  );
+
+/* ---------- live mode: events from the API for the visible month ---------- */
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+const LiveCalendar = ({ defaultMonth }: { defaultMonth?: MonthRef }) => {
+  const now = new Date();
+  const [year, setYear] = useState(defaultMonth?.year ?? now.getFullYear());
+  const [month, setMonth] = useState(defaultMonth?.month ?? now.getMonth());
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // First/last day of the visible month as ISO date strings.
+  const from = `${year}-${pad2(month + 1)}-01`;
+  const to = `${year}-${pad2(month + 1)}-${pad2(new Date(year, month + 1, 0).getDate())}`;
+
+  const eventsQuery = useEvents({ from, to });
+  const createEvent = useCreateEvent();
+  const deleteEvent = useDeleteEvent();
+
+  const events = useMemo(
+    () => (eventsQuery.data ?? []).map(fromApiEvent),
+    [eventsQuery.data]
+  );
+
+  const changeMonth = (delta: number) => {
+    const next = new Date(year, month + delta, 1);
+    setYear(next.getFullYear());
+    setMonth(next.getMonth());
+  };
+
+  const submitEvent = async (draft: EventDraft) => {
+    await createEvent.mutateAsync({
+      type: UI_TO_API_TYPE[draft.type],
+      title: draft.title,
+      eventDate: draft.date,
+      startTime: draft.start,
+      endTime: draft.end,
+      location: draft.location,
+      scope: "personal",
+    });
+    // Jump the view to the new event's month; the invalidated query refetches it.
+    setYear(Number(draft.date.slice(0, 4)));
+    setMonth(Number(draft.date.slice(5, 7)) - 1);
+  };
+
+  const handleDelete = (id: string) => {
+    setDeleteError(null);
+    deleteEvent.mutate(id, {
+      onError: (err: unknown) =>
+        setDeleteError(err instanceof Error ? err.message : "Could not delete the event."),
+    });
+  };
+
+  return (
+    <CalendarBody
+      events={events}
+      year={year}
+      month={month}
+      onChangeMonth={changeMonth}
+      onSubmitEvent={submitEvent}
+      isSaving={createEvent.isPending}
+      isLoading={eventsQuery.isPending}
+      loadError={eventsQuery.error ? eventsQuery.error.message : null}
+      onRetry={() => eventsQuery.refetch()}
+      onDeleteEvent={handleDelete}
+      deletingId={deleteEvent.isPending ? deleteEvent.variables ?? null : null}
+      deleteError={deleteError}
+    />
+  );
+};
+
+/* ---------- static mode: caller-supplied events, local-only adds ---------- */
+
+const StaticCalendar = ({
+  initialEvents,
+  defaultMonth,
+}: {
+  initialEvents: CalendarEvent[];
+  defaultMonth?: MonthRef;
+}) => {
   const seed =
     defaultMonth ??
     (initialEvents[0]
@@ -110,9 +250,71 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
   const [year, setYear] = useState(seed.year);
   const [month, setMonth] = useState(seed.month);
+
+  const changeMonth = (delta: number) => {
+    const next = new Date(year, month + delta, 1);
+    setYear(next.getFullYear());
+    setMonth(next.getMonth());
+  };
+
+  const submitEvent = (draft: EventDraft) => {
+    setEvents((prev) => [
+      ...prev,
+      { id: `custom-${draft.date}-${draft.start ?? "allday"}-${prev.length}`, ...draft },
+    ]);
+    // Jump the view to the new event's month.
+    setYear(Number(draft.date.slice(0, 4)));
+    setMonth(Number(draft.date.slice(5, 7)) - 1);
+    return Promise.resolve();
+  };
+
+  return (
+    <CalendarBody
+      events={events}
+      year={year}
+      month={month}
+      onChangeMonth={changeMonth}
+      onSubmitEvent={submitEvent}
+    />
+  );
+};
+
+/* ---------- presentational calendar (grid + list + modal) ---------- */
+
+interface CalendarBodyProps {
+  events: CalendarEvent[];
+  year: number;
+  month: number;
+  onChangeMonth: (delta: number) => void;
+  /** Resolve to close the modal; reject to surface the message inline. */
+  onSubmitEvent: (draft: EventDraft) => Promise<void>;
+  isSaving?: boolean;
+  isLoading?: boolean;
+  loadError?: string | null;
+  onRetry?: () => void;
+  onDeleteEvent?: (id: string) => void;
+  deletingId?: string | null;
+  deleteError?: string | null;
+}
+
+const CalendarBody = ({
+  events,
+  year,
+  month,
+  onChangeMonth,
+  onSubmitEvent,
+  isSaving = false,
+  isLoading = false,
+  loadError = null,
+  onRetry,
+  onDeleteEvent,
+  deletingId = null,
+  deleteError = null,
+}: CalendarBodyProps) => {
   const [hidden, setHidden] = useState<Set<EventType>>(new Set());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const visibleEvents = useMemo(() => events.filter((e) => !hidden.has(e.type)), [events, hidden]);
 
@@ -154,9 +356,7 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
 
   const changeMonth = (delta: number) => {
     setSelectedDay(null);
-    const next = new Date(year, month + delta, 1);
-    setYear(next.getFullYear());
-    setMonth(next.getMonth());
+    onChangeMonth(delta);
   };
 
   const toggleType = (type: EventType) => {
@@ -166,6 +366,11 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
       else next.add(type);
       return next;
     });
+  };
+
+  const openAdd = () => {
+    setSaveError(null);
+    setShowAdd(true);
   };
 
   const downloadICS = () => {
@@ -184,8 +389,7 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
     const date = String(form.get("date") || "");
     if (!date) return;
     const start = String(form.get("start") || "");
-    const ev: CalendarEvent = {
-      id: `custom-${date}-${start || "allday"}-${events.length}`,
+    const draft: EventDraft = {
       type: (form.get("type") as EventType) || "Deadline",
       title: String(form.get("title") || "Untitled Event"),
       date,
@@ -193,11 +397,12 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
       end: String(form.get("end") || "") || undefined,
       location: String(form.get("location") || "") || undefined,
     };
-    setEvents((prev) => [...prev, ev]);
-    // Jump the view to the new event's month.
-    setYear(Number(date.slice(0, 4)));
-    setMonth(Number(date.slice(5, 7)) - 1);
-    setShowAdd(false);
+    setSaveError(null);
+    onSubmitEvent(draft)
+      .then(() => setShowAdd(false))
+      .catch((err: unknown) =>
+        setSaveError(err instanceof Error ? err.message : "Could not add the event.")
+      );
   };
 
   return (
@@ -309,7 +514,40 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar max-h-[60vh]">
-            {listedEvents.length === 0 ? (
+            {deleteError && (
+              <div className="p-3 rounded-lg border border-status-error/30 bg-status-error/10">
+                <p className="text-body-md font-body-md text-status-error">{deleteError}</p>
+              </div>
+            )}
+            {isLoading ? (
+              [0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="p-4 rounded-lg border border-surface-border bg-surface-container-low animate-pulse"
+                >
+                  <div className="flex justify-between items-start mb-3 gap-2">
+                    <div className="h-5 w-24 rounded bg-surface-variant" />
+                    <div className="h-4 w-20 rounded bg-surface-variant" />
+                  </div>
+                  <div className="h-5 w-3/4 rounded bg-surface-variant mb-2" />
+                  <div className="h-4 w-1/2 rounded bg-surface-variant" />
+                </div>
+              ))
+            ) : loadError ? (
+              <div className="p-4 rounded-lg border border-status-error/30 bg-status-error/10 text-center">
+                <p className="text-body-md font-body-md text-status-error">
+                  Could not load events. {loadError}
+                </p>
+                {onRetry && (
+                  <button
+                    onClick={onRetry}
+                    className="mt-3 px-4 py-2 rounded-lg border border-status-error/40 text-label-md font-label-md text-status-error hover:bg-status-error/10 transition-colors"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            ) : listedEvents.length === 0 ? (
               <p className="text-body-md font-body-md text-text-secondary text-center py-8">No events to show.</p>
             ) : (
               listedEvents.map((ev) => (
@@ -321,8 +559,21 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
                     <span className={`px-2 py-0.5 rounded text-label-sm font-label-sm ${EVENT_CONFIG[ev.type].badge}`}>
                       {EVENT_CONFIG[ev.type].label}
                     </span>
-                    <span className="text-label-sm font-label-sm text-text-secondary whitespace-nowrap">
-                      {prettyDate(ev.date)}
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-label-sm font-label-sm text-text-secondary whitespace-nowrap">
+                        {prettyDate(ev.date)}
+                      </span>
+                      {onDeleteEvent && ev.scope === "personal" && (
+                        <button
+                          onClick={() => onDeleteEvent(ev.id)}
+                          disabled={deletingId === ev.id}
+                          className="text-text-secondary hover:text-status-error transition-colors disabled:opacity-50"
+                          aria-label={`Delete ${ev.title}`}
+                          title="Delete personal event"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">delete</span>
+                        </button>
+                      )}
                     </span>
                   </div>
                   <h4 className="text-title-md font-title-md text-primary mt-1">{ev.title}</h4>
@@ -415,6 +666,11 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
               </label>
               <input id="location" name="location" className={inputClass} placeholder="Venue or meeting link" />
             </div>
+            {saveError && (
+              <div className="p-3 rounded-lg border border-status-error/30 bg-status-error/10">
+                <p className="text-body-md font-body-md text-status-error">{saveError}</p>
+              </div>
+            )}
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
@@ -425,9 +681,10 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
               </button>
               <button
                 type="submit"
-                className="bg-gradient-to-b from-primary to-navy-deep border-t border-white/10 text-on-primary px-5 py-2 rounded-lg text-label-md font-label-md shadow-sm hover:opacity-90 transition-opacity"
+                disabled={isSaving}
+                className="bg-gradient-to-b from-primary to-navy-deep border-t border-white/10 text-on-primary px-5 py-2 rounded-lg text-label-md font-label-md shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60"
               >
-                Add Event
+                {isSaving ? "Adding…" : "Add Event"}
               </button>
             </div>
           </form>
@@ -435,7 +692,7 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
       )}
 
       {/* Self-contained action bar so any host page gets Add + Export for free. */}
-      <CalendarActions onAdd={() => setShowAdd(true)} onExport={downloadICS} />
+      <CalendarActions onAdd={openAdd} onExport={downloadICS} />
     </div>
   );
 };

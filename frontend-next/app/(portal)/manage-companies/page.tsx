@@ -1,18 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
-import StatusBadge from "@/components/ui/StatusBadge";
+import StatusBadge, { type BadgeTone } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
 import {
-  COMPANY_REGISTRATIONS,
-  FORM_RESPONSES,
-  INDUSTRIES,
-  BRANCHES,
-  PROCESS_TYPES,
-  type CompanyRegistration,
-  type FormResponse,
-} from "@/data/manage-companies";
+  useRegistrations,
+  useCreateRegistration,
+  useUpdateRegistration,
+  useRegistrationResponses,
+  useMeta,
+} from "@/lib/hooks";
+import type {
+  ProcessTypeApi,
+  RegistrationRow,
+  RegistrationResponseRow,
+  RegistrationStatusApi,
+} from "@/lib/api-types";
 
 type TabKey = "registrations" | "responses";
 
@@ -29,70 +33,89 @@ const FLOATING_LABEL =
 
 const SELECT_INPUT = `${FORM_INPUT} appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23475569%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_1rem_center] bg-no-repeat pr-10`;
 
-// ── Registration table columns ────────────────────────────────────────────
-const REGISTRATION_COLUMNS: Column<CompanyRegistration>[] = [
-  {
-    header: "Company",
-    className: "py-3 px-4",
-    render: (r) => (
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-surface-container-highest flex items-center justify-center text-label-md font-bold text-navy-vibrant shrink-0">
-          {r.company.charAt(0)}
-        </div>
-        <span className="font-medium text-primary">{r.company}</span>
-      </div>
-    ),
-  },
-  {
-    header: "Industry",
-    className: "py-3 px-4 text-text-secondary",
-    render: (r) => r.industry,
-  },
-  {
-    header: "Process Type",
-    className: "py-3 px-4 text-text-secondary",
-    render: (r) => r.processType,
-  },
-  {
-    header: "Status",
-    className: "py-3 px-4",
-    render: (r) => <StatusBadge tone={r.status.tone}>{r.status.label}</StatusBadge>,
-  },
-  {
-    header: "Responses",
-    headerClassName: "text-center",
-    className: "py-3 px-4 text-center",
-    render: (r) => (
-      <span className="inline-flex items-center justify-center min-w-7 px-2 py-0.5 rounded-full bg-primary-fixed text-primary text-label-sm font-label-sm font-semibold">
-        {r.responses}
-      </span>
-    ),
-  },
-  {
-    header: "Created On",
-    className: "py-3 px-4 text-text-secondary",
-    render: (r) => r.createdOn,
-  },
-  {
-    header: "",
-    headerClassName: "text-right",
-    className: "py-3 px-4 text-right",
-    render: () => (
-      <button className="text-text-secondary hover:text-primary p-1 transition-colors">
-        <span className="material-symbols-outlined text-[18px]">more_vert</span>
-      </button>
-    ),
-  },
+// ── Static industry list (no meta endpoint for industries) ────────────────
+const INDUSTRY_OPTIONS: string[] = [
+  "Software / IT",
+  "Finance / Fintech",
+  "Semiconductors / Hardware",
+  "Core / Manufacturing",
+  "E-Commerce / Retail",
+  "Consulting",
+  "Analytics / Data Science",
 ];
 
-// ── CSV export helper (mock client download) ──────────────────────────────
-const exportResponsesCsv = (rows: FormResponse[]) => {
-  const header = ["Name", "Roll No", "Branch", "CPI", "Email", "Submitted On", "Company"];
+// ── Process type: UI label ⇄ API enum ─────────────────────────────────────
+const PROCESS_OPTIONS: { value: ProcessTypeApi; label: string }[] = [
+  { value: "fte", label: "Full-Time" },
+  { value: "internship", label: "Internship" },
+  { value: "six_month_fte", label: "6-Month FTE Conversion" },
+  { value: "six_month_ppo", label: "6-Month + PPO" },
+];
+
+const PROCESS_LABELS: Record<ProcessTypeApi, string> = {
+  fte: "Full-Time",
+  internship: "Internship",
+  six_month_fte: "6-Month FTE Conversion",
+  six_month_ppo: "6-Month + PPO",
+};
+
+const processLabel = (p: ProcessTypeApi | null): string =>
+  p ? PROCESS_LABELS[p] : "—";
+
+// ── Status → StatusBadge tone/label ───────────────────────────────────────
+const STATUS_TONE: Record<RegistrationStatusApi, BadgeTone> = {
+  open: "success",
+  closed: "neutral",
+  pending: "warning",
+};
+
+const STATUS_LABEL: Record<RegistrationStatusApi, string> = {
+  open: "Open",
+  closed: "Closed",
+  pending: "Pending",
+};
+
+// ── Local formatters / derivations ────────────────────────────────────────
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** ISO/date string → "Oct 15, 2024". Returns "—" for empty/invalid input. */
+const formatDate = (iso: string | null): string => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+};
+
+/** "Aarav Sharma" → "AS". */
+const initialsOf = (name: string): string =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "?";
+
+// ── CSV export helper (client-side download) ──────────────────────────────
+const exportResponsesCsv = (
+  rows: RegistrationResponseRow[],
+  fileLabel: string
+) => {
+  const header = ["Name", "Roll No", "Branch", "CPI", "Email", "Submitted On"];
   const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const lines = [
     header.join(","),
     ...rows.map((r) =>
-      [r.name, r.roll, r.branch, String(r.cpi), r.email, r.submittedOn, r.company]
+      [
+        r.student.fullName,
+        r.student.rollNo,
+        r.student.branchCode ?? "",
+        r.student.cpi != null ? r.student.cpi.toFixed(2) : "",
+        r.student.email,
+        formatDate(r.submittedAt),
+      ]
         .map(escape)
         .join(",")
     ),
@@ -101,51 +124,202 @@ const exportResponsesCsv = (rows: FormResponse[]) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "form-responses.csv";
+  link.download = `${fileLabel || "form-responses"}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 };
 
+// ── Shared skeleton block ─────────────────────────────────────────────────
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={cn("animate-pulse rounded bg-surface-variant", className)} />
+);
+
 const ManageCompanies = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("registrations");
-  const [companyFilter, setCompanyFilter] = useState<string>("all");
 
-  // Form selects (mock controlled state)
+  // Registration form controlled state
+  const [companyName, setCompanyName] = useState("");
+  const [website, setWebsite] = useState("");
   const [industry, setIndustry] = useState("");
-  const [processType, setProcessType] = useState("");
+  const [processType, setProcessType] = useState<"" | ProcessTypeApi>("");
+  const [hrName, setHrName] = useState("");
+  const [hrEmail, setHrEmail] = useState("");
+  const [minCpi, setMinCpi] = useState("");
+  const [deadline, setDeadline] = useState("");
   const [eligibleBranches, setEligibleBranches] = useState<string[]>([]);
+  const [createSuccess, setCreateSuccess] = useState(false);
 
-  const toggleBranch = (branch: string) =>
+  // Responses tab: selected registration
+  const [selectedRegistrationId, setSelectedRegistrationId] = useState<
+    string | null
+  >(null);
+
+  // ── Data ────────────────────────────────────────────────────────────────
+  const registrationsQuery = useRegistrations({ page: 1 });
+  const meta = useMeta();
+  const createRegistration = useCreateRegistration();
+  const updateRegistration = useUpdateRegistration();
+  const responsesQuery = useRegistrationResponses(selectedRegistrationId);
+
+  const registrations = registrationsQuery.data?.items ?? [];
+  const branchOptions = meta.data?.branches ?? [];
+  const responses = responsesQuery.data ?? [];
+
+  const selectedRegistration = useMemo(
+    () => registrations.find((r) => r.id === selectedRegistrationId) ?? null,
+    [registrations, selectedRegistrationId]
+  );
+
+  const toggleBranch = (code: string) =>
     setEligibleBranches((prev) =>
-      prev.includes(branch) ? prev.filter((b) => b !== branch) : [...prev, branch]
+      prev.includes(code) ? prev.filter((b) => b !== code) : [...prev, code]
     );
 
-  const companies = useMemo(
-    () => COMPANY_REGISTRATIONS.map((r) => r.company),
-    []
-  );
+  const resetForm = () => {
+    setCompanyName("");
+    setWebsite("");
+    setIndustry("");
+    setProcessType("");
+    setHrName("");
+    setHrEmail("");
+    setMinCpi("");
+    setDeadline("");
+    setEligibleBranches([]);
+  };
 
-  const visibleResponses = useMemo(
-    () =>
-      FORM_RESPONSES.filter((r) =>
-        companyFilter === "all" ? true : r.company === companyFilter
+  const handleCreate = (e: FormEvent) => {
+    e.preventDefault();
+    setCreateSuccess(false);
+    const parsedCpi = minCpi.trim() === "" ? undefined : Number(minCpi);
+    createRegistration.mutate(
+      {
+        companyName: companyName.trim(),
+        industry: industry || undefined,
+        processType: processType || undefined,
+        minCpi:
+          parsedCpi != null && !Number.isNaN(parsedCpi) ? parsedCpi : undefined,
+        registrationDeadline: deadline || undefined,
+        eligibleBranchCodes: eligibleBranches,
+      },
+      {
+        onSuccess: () => {
+          setCreateSuccess(true);
+          resetForm();
+        },
+      }
+    );
+  };
+
+  const handleToggleStatus = (row: RegistrationRow) => {
+    const nextStatus: RegistrationStatusApi =
+      row.status === "open" ? "closed" : "open";
+    updateRegistration.mutate({ id: row.id, status: nextStatus });
+  };
+
+  const selectRow = (row: RegistrationRow) => {
+    setSelectedRegistrationId(row.id);
+    setActiveTab("responses");
+  };
+
+  // ── Registration table columns ──────────────────────────────────────────
+  const REGISTRATION_COLUMNS: Column<RegistrationRow>[] = [
+    {
+      header: "Company",
+      className: "py-3 px-4",
+      render: (r) => (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-surface-container-highest flex items-center justify-center text-label-md font-bold text-navy-vibrant shrink-0">
+            {r.companyName.charAt(0)}
+          </div>
+          <span className="font-medium text-primary">{r.companyName}</span>
+        </div>
       ),
-    [companyFilter]
-  );
+    },
+    {
+      header: "Industry",
+      className: "py-3 px-4 text-text-secondary",
+      render: (r) => r.industry ?? "—",
+    },
+    {
+      header: "Process Type",
+      className: "py-3 px-4 text-text-secondary",
+      render: (r) => processLabel(r.processType),
+    },
+    {
+      header: "Status",
+      className: "py-3 px-4",
+      render: (r) => (
+        <StatusBadge tone={STATUS_TONE[r.status]}>
+          {STATUS_LABEL[r.status]}
+        </StatusBadge>
+      ),
+    },
+    {
+      header: "Responses",
+      headerClassName: "text-center",
+      className: "py-3 px-4 text-center",
+      render: (r) => (
+        <span className="inline-flex items-center justify-center min-w-7 px-2 py-0.5 rounded-full bg-primary-fixed text-primary text-label-sm font-label-sm font-semibold">
+          {r.responseCount}
+        </span>
+      ),
+    },
+    {
+      header: "Created On",
+      className: "py-3 px-4 text-text-secondary",
+      render: (r) => formatDate(r.createdAt),
+    },
+    {
+      header: "",
+      headerClassName: "text-right",
+      className: "py-3 px-4 text-right",
+      render: (r) => {
+        const isOpen = r.status === "open";
+        const busy =
+          updateRegistration.isPending &&
+          updateRegistration.variables?.id === r.id;
+        return (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleToggleStatus(r);
+            }}
+            className={cn(
+              "inline-flex items-center gap-1 text-label-sm font-label-sm px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-60",
+              isOpen
+                ? "border-surface-border text-text-secondary hover:bg-surface-container-low"
+                : "border-status-success/30 text-status-success hover:bg-status-success/10"
+            )}
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              {busy ? "progress_activity" : isOpen ? "lock" : "lock_open"}
+            </span>
+            {busy ? "Saving" : isOpen ? "Close" : "Open"}
+          </button>
+        );
+      },
+    },
+  ];
 
-  // ── Response table columns (depends on nothing dynamic) ─────────────────
-  const RESPONSE_COLUMNS: Column<FormResponse>[] = [
+  // ── Response table columns ──────────────────────────────────────────────
+  const RESPONSE_COLUMNS: Column<RegistrationResponseRow>[] = [
     {
       header: "Name",
       className: "py-3 px-4",
       render: (r) => (
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-fixed text-primary flex items-center justify-center text-label-sm font-bold shrink-0">
-            {r.initials}
+            {initialsOf(r.student.fullName)}
           </div>
           <div className="min-w-0">
-            <div className="font-medium text-primary truncate">{r.name}</div>
-            <div className="text-label-sm text-text-secondary">{r.company}</div>
+            <div className="font-medium text-primary truncate">
+              {r.student.fullName}
+            </div>
+            <div className="text-label-sm text-text-secondary truncate">
+              {r.student.email}
+            </div>
           </div>
         </div>
       ),
@@ -153,33 +327,43 @@ const ManageCompanies = () => {
     {
       header: "Roll No",
       className: "py-3 px-4 font-mono text-sm text-on-surface",
-      render: (r) => r.roll,
+      render: (r) => r.student.rollNo,
     },
     {
       header: "Branch",
       className: "py-3 px-4",
       render: (r) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded bg-surface-variant text-on-surface-variant text-label-sm font-label-sm">
-          {r.branch}
+          {r.student.branchCode ?? "—"}
         </span>
       ),
     },
     {
       header: "CPI",
       className: "py-3 px-4 font-mono text-sm text-on-surface",
-      render: (r) => r.cpi.toFixed(2),
+      render: (r) => (r.student.cpi != null ? r.student.cpi.toFixed(2) : "—"),
     },
     {
       header: "Email",
       className: "py-3 px-4 text-text-secondary",
-      render: (r) => r.email,
+      render: (r) => r.student.email,
     },
     {
       header: "Submitted On",
       className: "py-3 px-4 text-text-secondary",
-      render: (r) => r.submittedOn,
+      render: (r) => formatDate(r.submittedAt),
     },
   ];
+
+  const tableShellClasses = {
+    theadClassName:
+      "bg-surface-container text-label-sm font-label-sm text-text-secondary uppercase tracking-wider",
+    thClassName: "py-3 px-4 font-semibold border-b border-surface-border text-left",
+    rowClassName: (_row: unknown, i: number) =>
+      `border-b border-surface-border hover:bg-surface-container-low transition-colors text-body-md font-body-md text-on-surface ${
+        i % 2 === 1 ? "bg-neutral-50/50" : ""
+      }`,
+  };
 
   return (
     <>
@@ -235,7 +419,7 @@ const ManageCompanies = () => {
 
                 <form
                   className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8"
-                  onSubmit={(e) => e.preventDefault()}
+                  onSubmit={handleCreate}
                 >
                   <div className="relative input-glow">
                     <label className={FLOATING_LABEL} htmlFor="company_name">
@@ -246,6 +430,9 @@ const ManageCompanies = () => {
                       id="company_name"
                       placeholder="e.g. Microsoft"
                       type="text"
+                      required
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
                     />
                   </div>
 
@@ -262,7 +449,7 @@ const ManageCompanies = () => {
                       <option disabled value="">
                         Select industry
                       </option>
-                      {INDUSTRIES.map((item) => (
+                      {INDUSTRY_OPTIONS.map((item) => (
                         <option key={item} value={item}>
                           {item}
                         </option>
@@ -279,6 +466,8 @@ const ManageCompanies = () => {
                       id="website"
                       placeholder="https://company.com"
                       type="url"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
                     />
                   </div>
 
@@ -290,14 +479,16 @@ const ManageCompanies = () => {
                       className={SELECT_INPUT}
                       id="process_type"
                       value={processType}
-                      onChange={(e) => setProcessType(e.target.value)}
+                      onChange={(e) =>
+                        setProcessType(e.target.value as "" | ProcessTypeApi)
+                      }
                     >
                       <option disabled value="">
                         Select process
                       </option>
-                      {PROCESS_TYPES.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
+                      {PROCESS_OPTIONS.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
                         </option>
                       ))}
                     </select>
@@ -312,6 +503,8 @@ const ManageCompanies = () => {
                       id="hr_name"
                       placeholder="e.g. Priya Sharma"
                       type="text"
+                      value={hrName}
+                      onChange={(e) => setHrName(e.target.value)}
                     />
                   </div>
 
@@ -324,6 +517,8 @@ const ManageCompanies = () => {
                       id="hr_email"
                       placeholder="hr@company.com"
                       type="email"
+                      value={hrEmail}
+                      onChange={(e) => setHrEmail(e.target.value)}
                     />
                   </div>
 
@@ -337,6 +532,8 @@ const ManageCompanies = () => {
                       placeholder="e.g. 7.5"
                       step="0.1"
                       type="number"
+                      value={minCpi}
+                      onChange={(e) => setMinCpi(e.target.value)}
                     />
                   </div>
 
@@ -344,7 +541,13 @@ const ManageCompanies = () => {
                     <label className={FLOATING_LABEL} htmlFor="deadline">
                       Registration Deadline
                     </label>
-                    <input className={FORM_INPUT} id="deadline" type="date" />
+                    <input
+                      className={FORM_INPUT}
+                      id="deadline"
+                      type="date"
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
+                    />
                   </div>
 
                   {/* Eligible branches multi-checkbox */}
@@ -352,41 +555,97 @@ const ManageCompanies = () => {
                     <span className="block text-label-sm font-label-sm text-text-secondary uppercase tracking-wide mb-4">
                       Eligible Branches
                     </span>
-                    <div className="flex flex-wrap gap-3">
-                      {BRANCHES.map((branch) => {
-                        const checked = eligibleBranches.includes(branch);
-                        return (
-                          <label
-                            key={branch}
-                            className={cn(
-                              "flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors text-body-md font-body-md",
-                              checked
-                                ? "border-primary bg-primary-fixed text-primary"
-                                : "border-surface-border text-text-secondary hover:border-outline-variant"
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleBranch(branch)}
-                              className="w-4 h-4 accent-primary"
-                            />
-                            {branch}
-                          </label>
-                        );
-                      })}
-                    </div>
+                    {meta.isLoading ? (
+                      <div className="flex flex-wrap gap-3">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <Skeleton key={i} className="h-10 w-24 rounded-lg" />
+                        ))}
+                      </div>
+                    ) : meta.isError ? (
+                      <div className="flex items-center justify-between gap-3 rounded-lg bg-status-error/10 px-4 py-3 text-status-error">
+                        <span className="text-body-md font-body-md">
+                          Couldn&apos;t load branches.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => meta.refetch()}
+                          className="text-label-md font-label-md underline"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : branchOptions.length === 0 ? (
+                      <p className="text-body-md font-body-md text-text-secondary">
+                        No branches available.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-3">
+                        {branchOptions.map((branch) => {
+                          const checked = eligibleBranches.includes(branch.code);
+                          return (
+                            <label
+                              key={branch.id}
+                              title={branch.name}
+                              className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors text-body-md font-body-md",
+                                checked
+                                  ? "border-primary bg-primary-fixed text-primary"
+                                  : "border-surface-border text-text-secondary hover:border-outline-variant"
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleBranch(branch.code)}
+                                className="w-4 h-4 accent-primary"
+                              />
+                              {branch.code}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Inline create feedback */}
+                  {createRegistration.isError && (
+                    <div className="md:col-span-2 flex items-center gap-2 rounded-lg bg-status-error/10 border border-status-error/20 px-4 py-3 text-status-error text-body-md font-body-md">
+                      <span className="material-symbols-outlined text-[18px]">
+                        error
+                      </span>
+                      {createRegistration.error instanceof Error
+                        ? createRegistration.error.message
+                        : "Could not create the registration. Please try again."}
+                    </div>
+                  )}
+                  {createSuccess && !createRegistration.isPending && (
+                    <div className="md:col-span-2 flex items-center gap-2 rounded-lg bg-status-success/10 border border-status-success/20 px-4 py-3 text-status-success text-body-md font-body-md">
+                      <span className="material-symbols-outlined text-[18px]">
+                        check_circle
+                      </span>
+                      Registration created successfully.
+                    </div>
+                  )}
 
                   <div className="md:col-span-2 flex justify-end pt-2">
                     <button
                       type="submit"
-                      className="btn-gradient text-on-primary text-title-md font-title-md px-8 py-3 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+                      disabled={createRegistration.isPending}
+                      className="btn-gradient text-on-primary text-title-md font-title-md px-8 py-3 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                      <span className="material-symbols-outlined text-[20px]">
-                        check_circle
+                      <span
+                        className={cn(
+                          "material-symbols-outlined text-[20px]",
+                          createRegistration.isPending && "animate-spin"
+                        )}
+                      >
+                        {createRegistration.isPending
+                          ? "progress_activity"
+                          : "check_circle"}
                       </span>
-                      Create Registration
+                      {createRegistration.isPending
+                        ? "Creating…"
+                        : "Create Registration"}
                     </button>
                   </div>
                 </form>
@@ -403,17 +662,66 @@ const ManageCompanies = () => {
                   Recruiters registered for the ongoing season.
                 </p>
               </div>
-              <DataTable
-                columns={REGISTRATION_COLUMNS}
-                rows={COMPANY_REGISTRATIONS}
-                theadClassName="bg-surface-container text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
-                thClassName="py-3 px-4 font-semibold border-b border-surface-border text-left"
-                rowClassName={(_, i) =>
-                  `border-b border-surface-border hover:bg-surface-container-low transition-colors text-body-md font-body-md text-on-surface ${
-                    i % 2 === 1 ? "bg-neutral-50/50" : ""
-                  }`
-                }
-              />
+
+              {registrationsQuery.isLoading ? (
+                <div className="p-5 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Skeleton className="h-9 w-9 rounded-lg" />
+                      <Skeleton className="h-4 flex-1" />
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                  ))}
+                </div>
+              ) : registrationsQuery.isError ? (
+                <div className="m-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-status-error/10 border border-status-error/20 px-4 py-4 text-status-error">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px]">
+                      error
+                    </span>
+                    <span className="text-body-md font-body-md">
+                      Couldn&apos;t load registrations.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => registrationsQuery.refetch()}
+                    className="flex items-center gap-1 text-label-md font-label-md px-3 py-1.5 rounded-lg border border-status-error/30 hover:bg-status-error/10 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      refresh
+                    </span>
+                    Retry
+                  </button>
+                </div>
+              ) : registrations.length === 0 ? (
+                <div className="text-center py-20 text-text-secondary">
+                  <span className="material-symbols-outlined text-[48px] mb-2 opacity-50">
+                    domain_add
+                  </span>
+                  <p className="text-title-md font-title-md">
+                    No companies registered yet
+                  </p>
+                  <p className="text-body-md font-body-md mt-1">
+                    Use the form above to register your first recruiter.
+                  </p>
+                </div>
+              ) : (
+                <DataTable
+                  columns={REGISTRATION_COLUMNS}
+                  rows={registrations}
+                  theadClassName={tableShellClasses.theadClassName}
+                  thClassName={tableShellClasses.thClassName}
+                  rowClassName={(row, i) =>
+                    cn(
+                      tableShellClasses.rowClassName(row, i),
+                      "cursor-pointer",
+                      row.id === selectedRegistrationId && "bg-primary-fixed/40"
+                    )
+                  }
+                />
+              )}
             </div>
           </div>
         )}
@@ -433,20 +741,30 @@ const ManageCompanies = () => {
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <select
-                    value={companyFilter}
-                    onChange={(e) => setCompanyFilter(e.target.value)}
+                    value={selectedRegistrationId ?? ""}
+                    onChange={(e) =>
+                      setSelectedRegistrationId(e.target.value || null)
+                    }
                     className="min-w-0 flex-1 sm:flex-none bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                   >
-                    <option value="all">All Companies</option>
-                    {companies.map((company) => (
-                      <option key={company} value={company}>
-                        {company}
+                    <option value="">Select a company…</option>
+                    {registrations.map((reg) => (
+                      <option key={reg.id} value={reg.id}>
+                        {reg.companyName}
                       </option>
                     ))}
                   </select>
                   <button
-                    onClick={() => exportResponsesCsv(visibleResponses)}
-                    className="shrink-0 flex items-center gap-1 text-label-md font-label-md px-3 py-2 border border-surface-border rounded-lg bg-white hover:bg-surface-container-low transition-colors text-text-secondary"
+                    onClick={() =>
+                      exportResponsesCsv(
+                        responses,
+                        selectedRegistration
+                          ? `${selectedRegistration.companyName}-responses`
+                          : "form-responses"
+                      )
+                    }
+                    disabled={responses.length === 0}
+                    className="shrink-0 flex items-center gap-1 text-label-md font-label-md px-3 py-2 border border-surface-border rounded-lg bg-white hover:bg-surface-container-low transition-colors text-text-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       download
@@ -456,7 +774,52 @@ const ManageCompanies = () => {
                 </div>
               </div>
 
-              {visibleResponses.length === 0 ? (
+              {!selectedRegistrationId ? (
+                <div className="text-center py-20 text-text-secondary">
+                  <span className="material-symbols-outlined text-[48px] mb-2 opacity-50">
+                    ads_click
+                  </span>
+                  <p className="text-title-md font-title-md">
+                    Select a company to view responses
+                  </p>
+                  <p className="text-body-md font-body-md mt-1">
+                    Pick a registration above, or click a row in the
+                    Registrations tab.
+                  </p>
+                </div>
+              ) : responsesQuery.isLoading ? (
+                <div className="p-5 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Skeleton className="h-9 w-9 rounded-full" />
+                      <Skeleton className="h-4 flex-1" />
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                  ))}
+                </div>
+              ) : responsesQuery.isError ? (
+                <div className="m-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg bg-status-error/10 border border-status-error/20 px-4 py-4 text-status-error">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px]">
+                      error
+                    </span>
+                    <span className="text-body-md font-body-md">
+                      Couldn&apos;t load responses.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => responsesQuery.refetch()}
+                    className="flex items-center gap-1 text-label-md font-label-md px-3 py-1.5 rounded-lg border border-status-error/30 hover:bg-status-error/10 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      refresh
+                    </span>
+                    Retry
+                  </button>
+                </div>
+              ) : responses.length === 0 ? (
                 <div className="text-center py-20 text-text-secondary">
                   <span className="material-symbols-outlined text-[48px] mb-2 opacity-50">
                     inbox
@@ -468,20 +831,24 @@ const ManageCompanies = () => {
               ) : (
                 <DataTable
                   columns={RESPONSE_COLUMNS}
-                  rows={visibleResponses}
-                  theadClassName="bg-surface-container text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
-                  thClassName="py-3 px-4 font-semibold border-b border-surface-border text-left"
-                  rowClassName={(_, i) =>
-                    `border-b border-surface-border hover:bg-surface-container-low transition-colors text-body-md font-body-md text-on-surface ${
-                      i % 2 === 1 ? "bg-neutral-50/50" : ""
-                    }`
-                  }
+                  rows={responses}
+                  theadClassName={tableShellClasses.theadClassName}
+                  thClassName={tableShellClasses.thClassName}
+                  rowClassName={tableShellClasses.rowClassName}
                 />
               )}
 
-              <div className="p-3 bg-surface-bright text-label-sm text-text-secondary">
-                Showing {visibleResponses.length} of {FORM_RESPONSES.length} responses
-              </div>
+              {selectedRegistrationId &&
+                !responsesQuery.isLoading &&
+                !responsesQuery.isError && (
+                  <div className="p-3 bg-surface-bright text-label-sm text-text-secondary">
+                    Showing {responses.length}{" "}
+                    {responses.length === 1 ? "response" : "responses"}
+                    {selectedRegistration
+                      ? ` for ${selectedRegistration.companyName}`
+                      : ""}
+                  </div>
+                )}
             </div>
           </div>
         )}

@@ -9,6 +9,14 @@ const schema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
+  // Number of proxy hops in front of the app (e.g. 1 behind an ALB) so req.ip
+  // is the real client and X-Forwarded-For can't be spoofed past the proxy.
+  // "false"/"0" = trust nothing (direct exposure). A blanket boolean true is
+  // intentionally NOT accepted — that would trust the entire XFF chain.
+  TRUST_PROXY: z.string().default("false"),
+  // Explicit, opt-in gate for the UNAUTHENTICATED dev-login route. Must be the
+  // literal "true" AND NODE_ENV must be "development". Fails closed otherwise.
+  ENABLE_DEV_LOGIN: z.coerce.boolean().default(false),
 
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().default("redis://localhost:6379"),
@@ -16,6 +24,9 @@ const schema = z.object({
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
   COOKIE_SECRET: z.string().min(16, "COOKIE_SECRET must be at least 16 characters"),
   SESSION_COOKIE: z.string().default("tpc_session"),
+  // Cookie Domain attribute for production (e.g. ".tpc.iitp.ac.in" so the FE
+  // host can read the role cookie). Leave unset on localhost.
+  COOKIE_DOMAIN: z.string().optional(),
 
   // Public base URL of THIS API (used to build magic-link URLs in emails).
   API_BASE_URL: z.string().default("http://localhost:4000"),
@@ -53,9 +64,27 @@ const e = parsed.data;
 
 const corsOrigins = e.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean);
 
+/**
+ * Fastify trustProxy: a hop count (number), CIDR list, or false. We refuse a
+ * blanket `true` so a forged X-Forwarded-For can't be trusted past the proxy.
+ */
+function parseTrustProxy(raw: string): number | string[] | false {
+  const v = raw.trim();
+  if (v === "" || v === "false" || v === "0") return false;
+  if (/^\d+$/.test(v)) return Number(v); // hop count, e.g. "1" behind one ALB
+  if (v === "true") {
+    console.warn('[env] TRUST_PROXY="true" is unsafe (trusts the whole XFF chain); use a hop count like "1".');
+    return false;
+  }
+  return v.split(",").map((s) => s.trim()).filter(Boolean); // CIDR allowlist
+}
+
 export const env = {
   port: e.PORT,
   nodeEnv: e.NODE_ENV,
+  trustProxy: parseTrustProxy(e.TRUST_PROXY),
+  // Dev-login is live ONLY with both the explicit flag AND development mode.
+  enableDevLogin: e.ENABLE_DEV_LOGIN && e.NODE_ENV === "development",
   corsOrigins,
   frontendOrigin: corsOrigins[0] ?? "http://localhost:3000",
   databaseUrl: e.DATABASE_URL,
@@ -63,6 +92,7 @@ export const env = {
   jwtSecret: e.JWT_SECRET,
   cookieSecret: e.COOKIE_SECRET,
   sessionCookie: e.SESSION_COOKIE,
+  cookieDomain: e.COOKIE_DOMAIN,
   apiBaseUrl: e.API_BASE_URL,
   smtp: {
     host: e.SMTP_HOST,

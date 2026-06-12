@@ -1,96 +1,202 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import StatusBadge, { type BadgeTone } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
 import {
-  EXPORT_STUDENTS,
-  PENDING_CORRECTIONS,
-  BRANCHES,
-  PLACEMENT_STATUSES,
-  EXPORT_FORMATS,
-  EXPORT_DATASETS,
-  type ExportStudent,
-  type CorrectionRequest,
-} from "@/data/global-export";
+  exportDataset,
+  useBlockStudent,
+  useCorrections,
+  useMeta,
+  useReviewCorrection,
+  useStudents,
+} from "@/lib/hooks";
+import type { CorrectionRequest, DirectoryStudentRow } from "@/lib/api-types";
 
-// Placement status -> badge tone (blocked rows override to error elsewhere).
-const statusTone = (status: string): BadgeTone => {
-  if (status === "Placed") return "success";
-  if (status === "Higher Studies") return "info";
-  return "warning"; // Unplaced
+/* ---------- local display helpers (API → view) ---------- */
+
+const PAGE_SIZE = 10;
+
+/** Export format choices (CSV download only for now). */
+const EXPORT_FORMATS = ["CSV"] as const;
+
+/** Dataset choices for the export panel (matches the export endpoints). */
+const EXPORT_DATASETS = ["Students", "Companies"] as const;
+
+/**
+ * Placement-status enum (backend) → display label + badge tone.
+ * The directory/export APIs speak the raw enum; the UI shows friendly labels.
+ */
+const PLACEMENT_LABELS: Record<string, string> = {
+  unplaced: "Unplaced",
+  placed: "Placed",
+  higher_studies: "Higher Studies",
+  opted_out: "Opted Out",
+  debarred: "Debarred",
+};
+
+const placementLabel = (status: string) =>
+  PLACEMENT_LABELS[status] ?? status.replace(/_/g, " ");
+
+const placementTone = (status: string): BadgeTone => {
+  if (status === "placed") return "success";
+  if (status === "higher_studies") return "info";
+  if (status === "debarred" || status === "opted_out") return "error";
+  return "warning"; // unplaced
+};
+
+/** Placement-status filter options ("" sentinel = all). */
+const PLACEMENT_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "All Statuses" },
+  { value: "placed", label: "Placed" },
+  { value: "unplaced", label: "Unplaced" },
+  { value: "higher_studies", label: "Higher Studies" },
+  { value: "opted_out", label: "Opted Out" },
+  { value: "debarred", label: "Debarred" },
+];
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** ISO datetime → "Oct 15, 2024". */
+const formatDate = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+};
+
+/** "Aarav Sharma" → "AS". */
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join("") || "?";
+
+/** Debounce a changing value (for search-as-you-type). */
+function useDebounced<T>(value: T, ms = 350): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={cn("animate-pulse bg-surface-variant rounded-lg", className)} />
+);
+
+const ErrorPanel = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-status-error/10 border border-status-error/20 rounded-xl px-4 py-3">
+    <span className="text-body-md font-body-md text-status-error flex items-center gap-2">
+      <span className="material-symbols-outlined text-[18px]">error</span>
+      {message}
+    </span>
+    <button
+      onClick={onRetry}
+      className="self-start sm:self-auto shrink-0 px-3 py-1.5 rounded-lg border border-status-error/30 text-status-error text-label-md font-label-md hover:bg-status-error/10 transition-colors"
+    >
+      Retry
+    </button>
+  </div>
+);
+
+/** Short human description of a correction request ("old → new"). */
+const correctionChange = (c: CorrectionRequest) => {
+  const next = c.requestedValue ?? "—";
+  if (c.currentValue != null && c.currentValue !== "") {
+    return `${c.currentValue} → ${next}`;
+  }
+  return next;
 };
 
 const GlobalExportPage = () => {
-  // --- Student directory state ---
-  const [students, setStudents] = useState<ExportStudent[]>(EXPORT_STUDENTS);
-  const [query, setQuery] = useState("");
-  const [dirBranch, setDirBranch] = useState<string>("All");
+  // --- Reference data (branch options) ---
+  const metaQ = useMeta();
+  const branchOptions = useMemo(() => metaQ.data?.branches ?? [], [metaQ.data]);
 
   // --- Export panel state ---
-  const [dataset, setDataset] = useState<string>("Students");
-  const [exportBranch, setExportBranch] = useState<string>("All");
-  const [exportStatus, setExportStatus] = useState<string>("All");
+  const [dataset, setDataset] = useState<(typeof EXPORT_DATASETS)[number]>("Students");
+  const [exportBranch, setExportBranch] = useState<string>(""); // branch code, "" = all
+  const [exportStatus, setExportStatus] = useState<string>(""); // enum, "" = all
   const [format, setFormat] = useState<string>("CSV");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
-  // --- Correction requests state ---
-  const [corrections, setCorrections] = useState<CorrectionRequest[]>(PENDING_CORRECTIONS);
-
-  // Rows visible in the directory table (search + branch filter).
-  const visibleStudents = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return students
-      .filter((s) => dirBranch === "All" || s.branch === dirBranch)
-      .filter(
-        (s) =>
-          !q ||
-          s.name.toLowerCase().includes(q) ||
-          s.roll.toLowerCase().includes(q)
-      );
-  }, [students, query, dirBranch]);
-
-  // Rows targeted by the export panel filters.
-  const exportRows = useMemo(
-    () =>
-      students
-        .filter((s) => exportBranch === "All" || s.branch === exportBranch)
-        .filter((s) => exportStatus === "All" || s.placementStatus === exportStatus),
-    [students, exportBranch, exportStatus]
-  );
-
-  const toggleBlocked = (id: string) =>
-    setStudents((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, blocked: !s.blocked } : s))
-    );
-
-  const resolveCorrection = (id: string) => {
-    setCorrections((prev) => prev.filter((c) => c.id !== id));
+  const handleExport = async () => {
+    setExportError(null);
+    setExporting(true);
+    try {
+      if (dataset === "Students") {
+        await exportDataset("students", {
+          branch: exportBranch || undefined,
+          placementStatus: exportStatus || undefined,
+        });
+      } else {
+        await exportDataset("companies", {});
+      }
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
   };
 
-  // Basic client-side CSV download of the currently-filtered student rows.
-  const handleExport = () => {
-    const headers = ["Roll No", "Name", "Branch", "CPI", "Placement Status", "Blocked"];
-    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-    const lines = exportRows.map((s) =>
-      [s.roll, s.name, s.branch, s.cpi, s.placementStatus, s.blocked ? "Yes" : "No"]
-        .map(escape)
-        .join(",")
+  // --- Correction requests ---
+  const correctionsQ = useCorrections({ status: "pending", page: 1 });
+  const corrections = useMemo(() => correctionsQ.data?.items ?? [], [correctionsQ.data]);
+  const reviewCorrection = useReviewCorrection();
+  const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
+
+  const reviewOne = (id: string, approve: boolean) => {
+    if (reviewCorrection.isPending) return;
+    setPendingReviewId(id);
+    reviewCorrection.mutate(
+      { id, approve },
+      { onSettled: () => setPendingReviewId(null) }
     );
-    const csv = [headers.map(escape).join(","), ...lines].join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${dataset.toLowerCase()}-export.${format.toLowerCase()}`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
+  };
+
+  // --- Student directory ---
+  const [query, setQuery] = useState("");
+  const search = useDebounced(query);
+  const [dirBranch, setDirBranch] = useState<string>(""); // branch code, "" = all
+  const [page, setPage] = useState(1);
+
+  const studentsQ = useStudents({
+    search: search || undefined,
+    branch: dirBranch || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+
+  const students = useMemo(() => studentsQ.data?.items ?? [], [studentsQ.data]);
+  const total = studentsQ.data?.total ?? 0;
+  const pageSize = studentsQ.data?.pageSize ?? PAGE_SIZE;
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, total);
+  const blockedCount = useMemo(() => students.filter((s) => s.isBlocked).length, [students]);
+
+  const blockStudent = useBlockStudent();
+  const [pendingBlockId, setPendingBlockId] = useState<string | null>(null);
+
+  const toggleBlocked = (s: DirectoryStudentRow) => {
+    if (blockStudent.isPending) return;
+    setPendingBlockId(s.id);
+    blockStudent.mutate(
+      {
+        id: s.id,
+        blocked: !s.isBlocked,
+        reason: !s.isBlocked ? "Blocked via global directory" : undefined,
+      },
+      { onSettled: () => setPendingBlockId(null) }
+    );
   };
 
   // Directory table columns.
-  const columns: Column<ExportStudent>[] = useMemo(
+  const columns: Column<DirectoryStudentRow>[] = useMemo(
     () => [
       {
         header: "Roll No",
@@ -99,10 +205,10 @@ const GlobalExportPage = () => {
           <span
             className={cn(
               "font-mono text-label-md font-label-md",
-              s.blocked ? "text-text-secondary" : "text-on-surface"
+              s.isBlocked ? "text-text-secondary" : "text-on-surface"
             )}
           >
-            {s.roll}
+            {s.rollNo}
           </span>
         ),
       },
@@ -114,20 +220,20 @@ const GlobalExportPage = () => {
             <div
               className={cn(
                 "w-8 h-8 rounded-full flex items-center justify-center text-label-sm font-bold shrink-0",
-                s.blocked
+                s.isBlocked
                   ? "bg-surface-variant text-text-secondary"
                   : "bg-primary-fixed text-primary"
               )}
             >
-              {s.initials}
+              {initialsOf(s.fullName)}
             </div>
             <span
               className={cn(
                 "text-body-md font-body-md",
-                s.blocked ? "text-text-secondary line-through" : "text-text-primary"
+                s.isBlocked ? "text-text-secondary line-through" : "text-text-primary"
               )}
             >
-              {s.name}
+              {s.fullName}
             </span>
           </div>
         ),
@@ -135,14 +241,14 @@ const GlobalExportPage = () => {
       {
         header: "Branch",
         className: "py-3 px-4 align-middle text-text-secondary text-body-md",
-        render: (s) => s.branch,
+        render: (s) => s.branch?.code ?? "—",
       },
       {
         header: "CPI",
         className: "py-3 px-4 align-middle font-mono text-label-md",
         render: (s) => (
-          <span className={s.blocked ? "text-text-secondary" : "text-on-surface"}>
-            {s.cpi}
+          <span className={s.isBlocked ? "text-text-secondary" : "text-on-surface"}>
+            {s.cpi != null ? s.cpi.toFixed(2) : "—"}
           </span>
         ),
       },
@@ -150,13 +256,13 @@ const GlobalExportPage = () => {
         header: "Placement Status",
         className: "py-3 px-4 align-middle",
         render: (s) =>
-          s.blocked ? (
+          s.isBlocked ? (
             <StatusBadge tone="error" icon="block">
               Blocked
             </StatusBadge>
           ) : (
-            <StatusBadge tone={statusTone(s.placementStatus)}>
-              {s.placementStatus}
+            <StatusBadge tone={placementTone(s.placementStatus)}>
+              {placementLabel(s.placementStatus)}
             </StatusBadge>
           ),
       },
@@ -164,34 +270,32 @@ const GlobalExportPage = () => {
         header: "Action",
         headerClassName: "text-right",
         className: "py-3 px-4 align-middle text-right",
-        render: (s) => (
-          <div className="inline-flex items-center gap-2">
-            <button
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-surface-border text-label-sm font-label-sm text-text-secondary hover:bg-surface-variant transition-colors"
-              aria-label={`Edit ${s.name}`}
-            >
-              <span className="material-symbols-outlined text-[16px]">edit</span>
-              Edit
-            </button>
-            <button
-              onClick={() => toggleBlocked(s.id)}
-              className={cn(
-                "inline-flex items-center gap-1 px-2 py-1 rounded-lg text-label-sm font-label-sm transition-colors",
-                s.blocked
-                  ? "bg-status-success/10 text-status-success hover:bg-status-success/20"
-                  : "bg-error-container text-on-error-container hover:opacity-90"
-              )}
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {s.blocked ? "lock_open" : "block"}
-              </span>
-              {s.blocked ? "Unblock" : "Block"}
-            </button>
-          </div>
-        ),
+        render: (s) => {
+          const busy = blockStudent.isPending && pendingBlockId === s.id;
+          return (
+            <div className="inline-flex items-center gap-2">
+              <button
+                onClick={() => toggleBlocked(s)}
+                disabled={busy}
+                className={cn(
+                  "inline-flex items-center gap-1 px-2 py-1 rounded-lg text-label-sm font-label-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                  s.isBlocked
+                    ? "bg-status-success/10 text-status-success hover:bg-status-success/20"
+                    : "bg-error-container text-on-error-container hover:opacity-90"
+                )}
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {busy ? "progress_activity" : s.isBlocked ? "lock_open" : "block"}
+                </span>
+                {busy ? "Saving…" : s.isBlocked ? "Unblock" : "Block"}
+              </button>
+            </div>
+          );
+        },
       },
     ],
-    []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [blockStudent.isPending, pendingBlockId]
   );
 
   return (
@@ -253,11 +357,13 @@ const GlobalExportPage = () => {
               <select
                 value={exportBranch}
                 onChange={(e) => setExportBranch(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-surface-border bg-surface-container-low text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all"
+                disabled={dataset === "Companies"}
+                className="w-full px-3 py-2 rounded-lg border border-surface-border bg-surface-container-low text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {BRANCHES.map((b) => (
-                  <option key={b} value={b}>
-                    {b === "All" ? "All Branches" : b}
+                <option value="">All Branches</option>
+                {branchOptions.map((b) => (
+                  <option key={b.id} value={b.code}>
+                    {b.code}
                   </option>
                 ))}
               </select>
@@ -271,11 +377,12 @@ const GlobalExportPage = () => {
               <select
                 value={exportStatus}
                 onChange={(e) => setExportStatus(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-surface-border bg-surface-container-low text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all"
+                disabled={dataset === "Companies"}
+                className="w-full px-3 py-2 rounded-lg border border-surface-border bg-surface-container-low text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {PLACEMENT_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s === "All" ? "All Statuses" : s}
+                {PLACEMENT_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
                   </option>
                 ))}
               </select>
@@ -301,25 +408,32 @@ const GlobalExportPage = () => {
           </div>
           <div className="px-5 pb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <p className="text-label-md font-label-md text-text-secondary">
-              {dataset === "Companies" ? (
+              {exportError ? (
+                <span className="inline-flex items-center gap-1 text-status-error">
+                  <span className="material-symbols-outlined text-[16px]">error</span>
+                  {exportError}
+                </span>
+              ) : dataset === "Companies" ? (
                 <span className="inline-flex items-center gap-1">
                   <span className="material-symbols-outlined text-[16px]">info</span>
-                  Company dataset export coming soon — showing student counts.
+                  Exports the full company directory.
                 </span>
               ) : (
-                <>
-                  <span className="text-on-surface font-medium">{exportRows.length}</span>{" "}
-                  student record{exportRows.length === 1 ? "" : "s"} match the current filters.
-                </>
+                <span className="inline-flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px]">info</span>
+                  Exports all matching student records for the selected filters.
+                </span>
               )}
             </p>
             <button
               onClick={handleExport}
-              disabled={dataset === "Companies" || exportRows.length === 0}
+              disabled={exporting}
               className="btn-gradient inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-on-primary text-label-md font-label-md shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span className="material-symbols-outlined text-[18px]">download</span>
-              Export {format}
+              <span className="material-symbols-outlined text-[18px]">
+                {exporting ? "progress_activity" : "download"}
+              </span>
+              {exporting ? "Exporting…" : `Export ${format}`}
             </button>
           </div>
         </section>
@@ -343,7 +457,16 @@ const GlobalExportPage = () => {
             </span>
           </div>
           <div className="p-4 space-y-3">
-            {corrections.length === 0 ? (
+            {correctionsQ.isLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-lg" />
+              ))
+            ) : correctionsQ.isError ? (
+              <ErrorPanel
+                message={correctionsQ.error?.message ?? "Failed to load correction requests."}
+                onRetry={() => correctionsQ.refetch()}
+              />
+            ) : corrections.length === 0 ? (
               <div className="text-center py-10 text-text-secondary">
                 <span className="material-symbols-outlined text-[40px] mb-2 opacity-50 block">
                   task_alt
@@ -352,46 +475,59 @@ const GlobalExportPage = () => {
                 <p className="text-body-md font-body-md">No pending correction requests.</p>
               </div>
             ) : (
-              corrections.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex flex-col md:flex-row md:items-center gap-3 p-4 rounded-lg border border-surface-border bg-surface-container-low"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="text-body-md font-body-md text-text-primary font-medium">
-                        {c.student}
-                      </span>
-                      <span className="font-mono text-label-sm text-text-secondary">
-                        {c.roll}
-                      </span>
-                      <StatusBadge tone="info">{c.field}</StatusBadge>
+              corrections.map((c) => {
+                const busy = reviewCorrection.isPending && pendingReviewId === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    className="flex flex-col md:flex-row md:items-center gap-3 p-4 rounded-lg border border-surface-border bg-surface-container-low"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="text-body-md font-body-md text-text-primary font-medium">
+                          {c.student?.fullName ?? "Unknown student"}
+                        </span>
+                        <span className="font-mono text-label-sm text-text-secondary">
+                          {c.student?.rollNo ?? ""}
+                        </span>
+                        <StatusBadge tone="info">{c.fieldName}</StatusBadge>
+                      </div>
+                      <p className="text-label-md font-label-md text-text-secondary">
+                        {correctionChange(c)}
+                      </p>
+                      <p className="text-label-sm font-label-sm text-text-secondary mt-1">
+                        Submitted {formatDate(c.createdAt)}
+                      </p>
                     </div>
-                    <p className="text-label-md font-label-md text-text-secondary">
-                      {c.change}
-                    </p>
-                    <p className="text-label-sm font-label-sm text-text-secondary mt-1">
-                      Submitted {c.submitted}
-                    </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => reviewOne(c.id, true)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-status-success/10 text-status-success text-label-md font-label-md hover:bg-status-success/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          {busy ? "progress_activity" : "check"}
+                        </span>
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => reviewOne(c.id, false)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-error-container text-on-error-container text-label-md font-label-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">close</span>
+                        Reject
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => resolveCorrection(c.id)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-status-success/10 text-status-success text-label-md font-label-md hover:bg-status-success/20 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">check</span>
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => resolveCorrection(c.id)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-error-container text-on-error-container text-label-md font-label-md hover:opacity-90 transition-opacity"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">close</span>
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
+            )}
+            {reviewCorrection.isError && (
+              <p className="text-label-sm font-label-sm text-status-error flex items-center gap-1 px-1">
+                <span className="material-symbols-outlined text-[14px]">error</span>
+                {reviewCorrection.error.message}
+              </p>
             )}
           </div>
         </section>
@@ -414,7 +550,10 @@ const GlobalExportPage = () => {
                 </span>
                 <input
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setPage(1);
+                  }}
                   className="w-full pl-9 pr-4 py-2 bg-surface-container-low border border-surface-border rounded-lg text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all"
                   placeholder="Search name or roll no..."
                   type="text"
@@ -422,19 +561,36 @@ const GlobalExportPage = () => {
               </div>
               <select
                 value={dirBranch}
-                onChange={(e) => setDirBranch(e.target.value)}
+                onChange={(e) => {
+                  setDirBranch(e.target.value);
+                  setPage(1);
+                }}
                 className="px-3 py-2 rounded-lg border border-surface-border bg-surface-container-low text-body-md font-body-md text-text-secondary focus:outline-none focus:border-primary transition-all"
               >
-                {BRANCHES.map((b) => (
-                  <option key={b} value={b}>
-                    {b === "All" ? "All Branches" : b}
+                <option value="">All Branches</option>
+                {branchOptions.map((b) => (
+                  <option key={b.id} value={b.code}>
+                    {b.code}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {visibleStudents.length === 0 ? (
+          {studentsQ.isLoading ? (
+            <div className="p-5 space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 rounded-lg" />
+              ))}
+            </div>
+          ) : studentsQ.isError ? (
+            <div className="p-5">
+              <ErrorPanel
+                message={studentsQ.error?.message ?? "Failed to load the student directory."}
+                onRetry={() => studentsQ.refetch()}
+              />
+            </div>
+          ) : students.length === 0 ? (
             <div className="text-center py-16 text-text-secondary">
               <span className="material-symbols-outlined text-[40px] mb-2 opacity-50 block">
                 search_off
@@ -444,13 +600,13 @@ const GlobalExportPage = () => {
           ) : (
             <DataTable
               columns={columns}
-              rows={visibleStudents}
+              rows={students}
               theadClassName="bg-surface-container text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
               thClassName="py-3 px-4 font-semibold border-b border-surface-border"
               rowClassName={(s) =>
                 cn(
                   "border-b border-surface-border hover:bg-surface-container-low transition-colors",
-                  s.blocked && "opacity-60 bg-error-container/20"
+                  s.isBlocked && "opacity-60 bg-error-container/20"
                 )
               }
             />
@@ -458,11 +614,29 @@ const GlobalExportPage = () => {
 
           <div className="px-5 py-3 bg-surface-bright border-t border-surface-border flex justify-between items-center text-label-sm font-label-sm text-text-secondary">
             <span>
-              Showing {visibleStudents.length} of {students.length} students
+              {total === 0
+                ? "No students"
+                : `Showing ${rangeStart}-${rangeEnd} of ${total} students`}
+              {blockedCount > 0 && ` · ${blockedCount} blocked on this page`}
             </span>
-            <span>
-              {students.filter((s) => s.blocked).length} blocked
-            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="p-1 hover:bg-surface-variant rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={page <= 1}
+                aria-label="Previous page"
+              >
+                <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+              </button>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                className="p-1 hover:bg-surface-variant rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={page * pageSize >= total}
+                aria-label="Next page"
+              >
+                <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              </button>
+            </div>
           </div>
         </section>
       </div>

@@ -26,14 +26,17 @@ export async function requestRecruiterLogin(email: string): Promise<void> {
   });
 
   const link = `${env.apiBaseUrl}/auth/recruiter/verify?token=${token}`;
-  await sendMail(
+  // Fire-and-forget the email: awaiting the SMTP round-trip here would make the
+  // response time reveal whether the address is a provisioned recruiter (an
+  // account-enumeration timing oracle). Send out-of-band instead.
+  void sendMail(
     user.email,
     "Sign in to the IIT Patna TPC portal",
     `<p>Hello,</p>
      <p>Click the button below to sign in. This link is valid for ${TOKEN_TTL_MIN} minutes and can be used once.</p>
      <p><a href="${link}" style="background:#002d59;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">Sign in</a></p>
      <p>If you didn't request this, you can ignore this email.</p>`
-  );
+  ).catch((err) => console.error("[recruiter] magic-link send failed:", err?.message ?? err));
 }
 
 /**

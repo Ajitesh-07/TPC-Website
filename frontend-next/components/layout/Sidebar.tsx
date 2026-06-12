@@ -24,7 +24,7 @@ interface SidebarProps {
 const Sidebar = ({ mobileOpen = false, onClose }: SidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const { role } = useRole();
+  const { role, signOut } = useRole();
 
   // Only show nav items this role is meant to see.
   const items = SIDEBAR_ITEMS.filter((item) => item.roles.includes(role));
@@ -148,11 +148,15 @@ const Sidebar = ({ mobileOpen = false, onClose }: SidebarProps) => {
                 Support
               </span>
             </Link>
-            <Link
-              href="/"
-              onClick={onClose}
+            <button
+              type="button"
+              onClick={async () => {
+                onClose?.();
+                await signOut();
+                window.location.href = "/";
+              }}
               className={cn(
-                "flex items-center gap-3 text-on-primary-fixed-variant py-2 hover:bg-primary-container transition-all duration-200 rounded-xl group",
+                "w-full flex items-center gap-3 text-on-primary-fixed-variant py-2 hover:bg-primary-container transition-all duration-200 rounded-xl group",
                 itemPadding
               )}
             >
@@ -162,7 +166,7 @@ const Sidebar = ({ mobileOpen = false, onClose }: SidebarProps) => {
               <span className={cn("text-label-md font-label-md group-hover:text-error-container", labelHidden)}>
                 Logout
               </span>
-            </Link>
+            </button>
           </div>
         </div>
 

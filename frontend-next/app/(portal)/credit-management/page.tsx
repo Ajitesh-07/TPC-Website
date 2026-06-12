@@ -1,16 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import StatusBadge, { type BadgeTone } from "@/components/ui/StatusBadge";
 import { Timeline, TimelineItem } from "@/components/ui/Timeline";
-import {
-  CREDIT_STUDENTS,
-  CREDIT_REASONS,
-  type CreditStudent,
-  type CreditEntry,
-} from "@/data/credit";
+import { CREDIT_REASONS } from "@/data/credit";
+import { useAdjustCredits, useCreditHistory, useCredits } from "@/lib/hooks";
+import type { CreditRow } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
+
+/* ---------- local display helpers (API → view) ---------- */
 
 // Credit balance -> tone. Low credits read as warning/error.
 const creditTone = (credits: number): BadgeTone => {
@@ -30,73 +29,121 @@ const deltaTone = (delta: number) =>
 
 const formatDelta = (delta: number) => (delta > 0 ? `+${delta}` : `${delta}`);
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** ISO datetime → "Oct 15, 2024". */
+const formatDate = (iso: string) => {
+  const d = new Date(iso);
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+};
+
+/** "Aarav Sharma" → "AS". */
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join("") || "?";
+
+/** Debounce a changing value (for search-as-you-type). */
+function useDebounced<T>(value: T, ms = 350): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={cn("animate-pulse bg-surface-variant rounded-lg", className)} />
+);
+
+const ErrorPanel = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-status-error/10 border border-status-error/20 rounded-xl px-4 py-3">
+    <span className="text-body-md font-body-md text-status-error flex items-center gap-2">
+      <span className="material-symbols-outlined text-[18px]">error</span>
+      {message}
+    </span>
+    <button
+      onClick={onRetry}
+      className="self-start sm:self-auto shrink-0 px-3 py-1.5 rounded-lg border border-status-error/30 text-status-error text-label-md font-label-md hover:bg-status-error/10 transition-colors"
+    >
+      Retry
+    </button>
+  </div>
+);
+
 const CreditManagement = () => {
   const [query, setQuery] = useState("");
+  const search = useDebounced(query);
   const [reasonFilter, setReasonFilter] = useState("All reasons");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [bandFilter, setBandFilter] = useState("All");
+  const [page, setPage] = useState(1);
 
-  // Working copy so mock adjustments persist for the session.
-  const [students, setStudents] = useState<CreditStudent[]>(CREDIT_STUDENTS);
+  const creditsQ = useCredits({
+    search: search || undefined,
+    reason: reasonFilter === "All reasons" ? undefined : reasonFilter,
+    band: bandFilter === "All" ? undefined : bandFilter,
+    page,
+  });
+
+  const rows = useMemo(() => creditsQ.data?.items ?? [], [creditsQ.data]);
+  const total = creditsQ.data?.total ?? 0;
+  const pageSize = creditsQ.data?.pageSize ?? 20;
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, total);
+
+  // Selected student: snapshot keeps the modal alive even if a filter change /
+  // refetch drops the row out of the current page; live row wins when present.
+  const [snapshot, setSnapshot] = useState<CreditRow | null>(null);
+  const selected = useMemo(() => {
+    if (!snapshot) return null;
+    return rows.find((r) => r.studentId === snapshot.studentId) ?? snapshot;
+  }, [rows, snapshot]);
+
+  const historyQ = useCreditHistory(snapshot?.studentId ?? null);
+  const adjust = useAdjustCredits();
 
   // Adjust form state.
   const [amount, setAmount] = useState(5);
   const [adjustReason, setAdjustReason] = useState(CREDIT_REASONS[0]);
   const [note, setNote] = useState("");
 
-  const selected = useMemo(
-    () => students.find((s) => s.id === selectedId) ?? null,
-    [students, selectedId]
-  );
-
-  const visibleStudents = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return students
-      .filter((s) => !q || s.name.toLowerCase().includes(q) || s.roll.toLowerCase().includes(q))
-      .filter((s) =>
-        reasonFilter === "All reasons"
-          ? true
-          : s.history.some((h) => h.reason === reasonFilter)
-      )
-      .filter((s) =>
-        statusFilter === "All" ? true : creditLabel(s.credits) === statusFilter
-      );
-  }, [students, query, reasonFilter, statusFilter]);
-
-  const openStudent = (student: CreditStudent) => {
-    setSelectedId(student.id);
+  const openStudent = (student: CreditRow) => {
+    setSnapshot(student);
     setAmount(5);
     setAdjustReason(CREDIT_REASONS[0]);
     setNote("");
+    adjust.reset();
   };
+
+  const closeModal = () => setSnapshot(null);
 
   const applyAdjustment = () => {
-    if (!selected || amount === 0 || !adjustReason) return;
-    const entry: CreditEntry = {
-      date: new Date().toISOString().slice(0, 10),
-      delta: amount,
-      reason: adjustReason,
-      by: "You (Admin)",
-    };
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === selected.id
-          ? {
-              ...s,
-              credits: Math.max(0, s.credits + amount),
-              history: [entry, ...s.history],
-            }
-          : s
-      )
+    if (!selected || amount === 0 || !adjustReason || adjust.isPending) return;
+    adjust.mutate(
+      {
+        studentId: selected.studentId,
+        delta: amount,
+        reason: adjustReason,
+        note: note.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setNote("");
+          setAmount(5);
+        },
+      }
     );
-    setNote("");
   };
 
-  const columns: Column<CreditStudent>[] = [
+  const columns: Column<CreditRow>[] = [
     {
       header: "Roll No",
       className: "py-3 px-4 font-mono text-label-md text-text-secondary",
-      render: (s) => s.roll,
+      render: (s) => s.rollNo,
     },
     {
       header: "Name",
@@ -104,25 +151,25 @@ const CreditManagement = () => {
       render: (s) => (
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary-fixed text-primary flex items-center justify-center text-label-md font-bold shrink-0">
-            {s.initials}
+            {initialsOf(s.fullName)}
           </div>
-          <span className="font-medium text-text-primary">{s.name}</span>
+          <span className="font-medium text-text-primary">{s.fullName}</span>
         </div>
       ),
     },
     {
       header: "Branch",
       className: "py-3 px-4 text-text-secondary",
-      render: (s) => s.branch,
+      render: (s) => s.branchCode ?? "—",
     },
     {
       header: "Current Credits",
       className: "py-3 px-4",
       render: (s) => (
         <div className="flex items-center gap-2">
-          <span className="font-mono text-title-md text-on-surface">{s.credits}</span>
-          <StatusBadge tone={creditTone(s.credits)} bordered>
-            {creditLabel(s.credits)}
+          <span className="font-mono text-title-md text-on-surface">{s.creditBalance}</span>
+          <StatusBadge tone={creditTone(s.creditBalance)} bordered>
+            {creditLabel(s.creditBalance)}
           </StatusBadge>
         </div>
       ),
@@ -131,7 +178,7 @@ const CreditManagement = () => {
       header: "Last Change",
       className: "py-3 px-4",
       render: (s) => {
-        const last = s.history[0];
+        const last = s.lastTransaction;
         if (!last) return <span className="text-text-secondary">—</span>;
         return (
           <div className="flex items-center gap-2 min-w-0">
@@ -178,7 +225,10 @@ const CreditManagement = () => {
             </span>
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
               className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-surface-border rounded-xl text-body-md font-body-md text-on-surface input-glow focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed-dim transition-all"
               placeholder="Search by name or roll no…"
               type="text"
@@ -198,7 +248,10 @@ const CreditManagement = () => {
             <label className="text-label-md font-label-md text-text-secondary shrink-0">Reason</label>
             <select
               value={reasonFilter}
-              onChange={(e) => setReasonFilter(e.target.value)}
+              onChange={(e) => {
+                setReasonFilter(e.target.value);
+                setPage(1);
+              }}
               className="w-full sm:w-auto bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary cursor-pointer"
             >
               <option>All reasons</option>
@@ -213,25 +266,41 @@ const CreditManagement = () => {
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <label className="text-label-md font-label-md text-text-secondary shrink-0">Credit status</label>
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={bandFilter}
+              onChange={(e) => {
+                setBandFilter(e.target.value);
+                setPage(1);
+              }}
               className="w-full sm:w-auto bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary cursor-pointer"
             >
               <option value="All">All</option>
-              <option value="Healthy">Healthy</option>
-              <option value="Low">Low</option>
-              <option value="Critical">Critical</option>
+              <option value="healthy">Healthy</option>
+              <option value="low">Low</option>
+              <option value="critical">Critical</option>
             </select>
           </div>
 
           <span className="sm:ml-auto text-label-md font-label-md text-text-secondary">
-            {visibleStudents.length} student{visibleStudents.length === 1 ? "" : "s"}
+            {total} student{total === 1 ? "" : "s"}
           </span>
         </div>
 
         {/* Students table */}
         <div className="bg-surface-container-lowest rounded-xl border border-surface-border elevation-1 overflow-hidden">
-          {visibleStudents.length === 0 ? (
+          {creditsQ.isLoading ? (
+            <div className="p-5 space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 rounded-lg" />
+              ))}
+            </div>
+          ) : creditsQ.isError ? (
+            <div className="p-5">
+              <ErrorPanel
+                message={creditsQ.error?.message ?? "Failed to load credit balances."}
+                onRetry={() => creditsQ.refetch()}
+              />
+            </div>
+          ) : rows.length === 0 ? (
             <div className="text-center py-20 text-text-secondary">
               <span className="material-symbols-outlined text-[48px] mb-2 opacity-50">
                 search_off
@@ -239,15 +308,46 @@ const CreditManagement = () => {
               <p className="text-title-md font-title-md">No students match your filters</p>
             </div>
           ) : (
-            <DataTable
-              columns={columns}
-              rows={visibleStudents}
-              theadClassName="bg-surface-container text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
-              thClassName="py-3 px-4 font-semibold border-b border-surface-border text-left"
-              rowClassName={() =>
-                "border-b border-surface-border last:border-0 hover:bg-surface-container-low transition-colors text-body-md font-body-md text-on-surface"
-              }
-            />
+            <>
+              <DataTable
+                columns={columns}
+                rows={rows}
+                theadClassName="bg-surface-container text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
+                thClassName="py-3 px-4 font-semibold border-b border-surface-border text-left"
+                rowClassName={() =>
+                  "border-b border-surface-border last:border-0 hover:bg-surface-container-low transition-colors text-body-md font-body-md text-on-surface"
+                }
+              />
+              {total > pageSize && (
+                <div className="p-3 border-t border-surface-border bg-surface-bright flex justify-between items-center text-label-sm text-text-secondary">
+                  <span>
+                    Showing {rangeStart}-{rangeEnd} of {total} students
+                  </span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="p-1 hover:bg-surface-variant rounded disabled:opacity-50"
+                      disabled={page <= 1}
+                      aria-label="Previous page"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        chevron_left
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setPage((p) => p + 1)}
+                      className="p-1 hover:bg-surface-variant rounded disabled:opacity-50"
+                      disabled={page * pageSize >= total}
+                      aria-label="Next page"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">
+                        chevron_right
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -257,24 +357,24 @@ const CreditManagement = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setSelectedId(null)}
+            onClick={closeModal}
           ></div>
           <div className="relative z-10 bg-surface-container-lowest rounded-xl border border-surface-border w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar elevation-2">
             {/* Header */}
             <div className="sticky top-0 bg-surface-container-lowest/95 backdrop-blur-sm border-b border-surface-border px-6 py-4 flex justify-between items-start">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-primary-fixed text-primary flex items-center justify-center text-title-md font-bold shrink-0">
-                  {selected.initials}
+                  {initialsOf(selected.fullName)}
                 </div>
                 <div>
-                  <h3 className="text-title-lg font-title-lg text-text-primary">{selected.name}</h3>
+                  <h3 className="text-title-lg font-title-lg text-text-primary">{selected.fullName}</h3>
                   <p className="text-label-md font-label-md text-text-secondary">
-                    {selected.roll} · {selected.branch}
+                    {selected.rollNo} · {selected.branchCode ?? "—"}
                   </p>
                 </div>
               </div>
               <button
-                onClick={() => setSelectedId(null)}
+                onClick={closeModal}
                 className="w-9 h-9 rounded-full hover:bg-surface-variant flex items-center justify-center text-text-secondary transition-colors"
                 aria-label="Close"
               >
@@ -290,15 +390,15 @@ const CreditManagement = () => {
                     Current Balance
                   </span>
                   <span className="text-headline-md font-headline-md font-mono text-on-surface">
-                    {selected.credits}
+                    {selected.creditBalance}
                   </span>
                 </div>
                 <StatusBadge
-                  tone={creditTone(selected.credits)}
+                  tone={creditTone(selected.creditBalance)}
                   bordered
                   className="px-3 py-1 text-label-md font-label-md"
                 >
-                  {creditLabel(selected.credits)}
+                  {creditLabel(selected.creditBalance)}
                 </StatusBadge>
               </div>
 
@@ -370,13 +470,20 @@ const CreditManagement = () => {
                     />
                   </div>
 
+                  {adjust.isError && (
+                    <p className="text-label-sm font-label-sm text-status-error flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">error</span>
+                      {adjust.error.message}
+                    </p>
+                  )}
+
                   <button
                     onClick={applyAdjustment}
-                    disabled={amount === 0 || !adjustReason}
+                    disabled={amount === 0 || !adjustReason || adjust.isPending}
                     className="w-full btn-gradient text-on-primary py-2.5 rounded-lg text-title-md font-title-md shadow-sm hover-lift disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none flex items-center justify-center gap-2"
                   >
                     <span className="material-symbols-outlined text-[18px]">check</span>
-                    Apply Adjustment
+                    {adjust.isPending ? "Applying…" : "Apply Adjustment"}
                   </button>
                 </div>
               </div>
@@ -386,34 +493,54 @@ const CreditManagement = () => {
                 <h4 className="text-label-md font-label-md text-text-secondary uppercase tracking-wider mb-3">
                   Credit History
                 </h4>
-                <Timeline spacing="space-y-5">
-                  {selected.history.map((h, i) => (
-                    <TimelineItem
-                      key={`${h.date}-${i}`}
-                      dotClassName={cn(
-                        "left-[-5px] top-1.5 w-2.5 h-2.5 rounded-full",
-                        h.delta > 0
-                          ? "bg-status-success"
-                          : h.delta < 0
-                            ? "bg-status-error"
-                            : "bg-surface-variant"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-body-md font-body-md text-text-primary">
-                          {h.reason}
-                        </span>
-                        <span className={cn("font-mono font-medium shrink-0", deltaTone(h.delta))}>
-                          {formatDelta(h.delta)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-label-sm font-label-sm text-text-secondary mt-0.5">
-                        <span>{h.by}</span>
-                        <span>{h.date}</span>
-                      </div>
-                    </TimelineItem>
-                  ))}
-                </Timeline>
+                {historyQ.isLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="h-10 rounded-lg" />
+                    ))}
+                  </div>
+                ) : historyQ.isError ? (
+                  <ErrorPanel
+                    message={historyQ.error?.message ?? "Failed to load credit history."}
+                    onRetry={() => historyQ.refetch()}
+                  />
+                ) : (historyQ.data?.length ?? 0) === 0 ? (
+                  <p className="text-body-md font-body-md text-text-secondary">
+                    No credit activity yet.
+                  </p>
+                ) : (
+                  <Timeline spacing="space-y-5">
+                    {historyQ.data?.map((h) => (
+                      <TimelineItem
+                        key={h.id}
+                        dotClassName={cn(
+                          "left-[-5px] top-1.5 w-2.5 h-2.5 rounded-full",
+                          h.delta > 0
+                            ? "bg-status-success"
+                            : h.delta < 0
+                              ? "bg-status-error"
+                              : "bg-surface-variant"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-body-md font-body-md text-text-primary">
+                            {h.reason}
+                          </span>
+                          <span className={cn("font-mono font-medium shrink-0", deltaTone(h.delta))}>
+                            {formatDelta(h.delta)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-label-sm font-label-sm text-text-secondary mt-0.5">
+                          <span>{h.createdByName ?? "System"}</span>
+                          <span>
+                            {formatDate(h.createdAt)}
+                            {h.balanceAfter != null && ` · bal ${h.balanceAfter}`}
+                          </span>
+                        </div>
+                      </TimelineItem>
+                    ))}
+                  </Timeline>
+                )}
               </div>
             </div>
           </div>

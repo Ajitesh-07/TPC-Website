@@ -1,5 +1,4 @@
 import CalendarView from "@/components/calendar/CalendarView";
-import { STUDENT_EVENTS } from "@/data/calendar";
 
 const CalendarPage = () => {
   return (
@@ -17,7 +16,8 @@ const CalendarPage = () => {
         </div>
       </header>
 
-      <CalendarView initialEvents={STUDENT_EVENTS} />
+      {/* Live events: CalendarView fetches the visible month via useEvents. */}
+      <CalendarView />
     </>
   );
 };

@@ -1,17 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PortalHeader from "@/components/ui/PortalHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import { cn } from "@/lib/utils";
+import { useRole } from "@/components/providers/RoleProvider";
 import {
-  VISITING_TEAM,
-  FINALISED_SCHEDULE,
+  useAddVisitingMember,
+  useLogistics,
+  useRemoveVisitingMember,
+  useSaveLogistics,
+} from "@/lib/hooks";
+import type {
+  LogisticsRequestApi,
+  LogisticsResponse,
+  LogisticsUpdatePayload,
+  VisitingMemberApi,
+} from "@/lib/api-types";
+import {
   VENUE_OPTIONS,
   DIETARY_OPTIONS,
-  type VisitingMember,
-  type ScheduleEntry,
 } from "@/data/logistics";
 
 const FORM_INPUT =
@@ -32,6 +41,85 @@ const AVATAR_TONES = [
   "bg-tertiary-fixed text-on-tertiary-fixed",
   "bg-navy-vibrant/10 text-navy-vibrant",
 ];
+
+// ---------- local display helpers ----------
+
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** ISO / "YYYY-MM-DD" → "Jul 14, 2026". */
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2, "0")}, ${d.getFullYear()}`;
+}
+
+/** "14:30" → "2:30 PM". */
+function formatTime(hhmm: string): string {
+  const [h = 0, m = 0] = hhmm.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+/** Schedule slot time window in display style. */
+function formatTimeRange(
+  startTime: string | null,
+  endTime: string | null
+): string {
+  if (startTime && endTime) return `${formatTime(startTime)} - ${formatTime(endTime)}`;
+  if (startTime) return `${formatTime(startTime)} onwards`;
+  return "All day";
+}
+
+/** "Ananya Krishnan" → "AK" (first letters of the first two words). */
+function initialsOf(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]!.toUpperCase())
+      .join("") || "?"
+  );
+}
+
+type ScheduleEntryApi = LogisticsResponse["schedule"][number];
+
+/** Editable mirror of the logistics request (id stripped). */
+type RequestForm = LogisticsUpdatePayload;
+
+/** Map a loaded request into editable form state, defaulting nullable fields. */
+function toForm(req: LogisticsRequestApi): RequestForm {
+  return {
+    accommodationRequired: req.accommodationRequired,
+    roomsRequired: req.roomsRequired,
+    checkIn: req.checkIn,
+    checkOut: req.checkOut,
+    dietaryPreference: req.dietaryPreference,
+    specialRequests: req.specialRequests,
+    venuePreference: req.venuePreference,
+    systemsRequired: req.systemsRequired,
+    projectorRequired: req.projectorRequired,
+    internetRequired: req.internetRequired,
+    technicalNotes: req.technicalNotes,
+  };
+}
+
+/** ISO / "YYYY-MM-DD" → "YYYY-MM-DD" for date inputs (local time). */
+function toDateInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/** Empty member form. */
+const EMPTY_MEMBER = { name: "", designation: "", phone: "", email: "" };
 
 /** Card section wrapper: title + icon + optional action, then content. */
 function SectionCard({
@@ -72,7 +160,7 @@ function SectionCard({
   );
 }
 
-/** Reusable on/off pill toggle (mock state only). */
+/** Reusable on/off pill toggle. */
 function Toggle({
   on,
   onChange,
@@ -104,49 +192,7 @@ function Toggle({
   );
 }
 
-const TEAM_COLUMNS: Column<VisitingMember>[] = [
-  {
-    header: "Member",
-    className: "px-4 py-3",
-    render: (m, i) => (
-      <div className="flex items-center gap-3">
-        <div
-          className={cn(
-            "w-9 h-9 rounded-full flex items-center justify-center text-label-sm font-label-sm font-semibold shrink-0",
-            AVATAR_TONES[i % AVATAR_TONES.length]
-          )}
-        >
-          {m.initials}
-        </div>
-        <span className="font-medium text-text-primary">{m.name}</span>
-      </div>
-    ),
-  },
-  {
-    header: "Designation",
-    className: "px-4 py-3 text-text-secondary",
-    render: (m) => m.designation,
-  },
-  {
-    header: "Phone",
-    className: "px-4 py-3 text-text-secondary whitespace-nowrap",
-    render: (m) => m.phone,
-  },
-  {
-    header: "Email",
-    className: "px-4 py-3 text-text-secondary",
-    render: (m) => (
-      <a
-        href={`mailto:${m.email}`}
-        className="text-primary hover:text-navy-vibrant hover:underline transition-colors"
-      >
-        {m.email}
-      </a>
-    ),
-  },
-];
-
-const SCHEDULE_COLUMNS: Column<ScheduleEntry>[] = [
+const SCHEDULE_COLUMNS: Column<ScheduleEntryApi>[] = [
   {
     header: "Event",
     className: "px-4 py-3 font-medium text-text-primary",
@@ -155,34 +201,149 @@ const SCHEDULE_COLUMNS: Column<ScheduleEntry>[] = [
   {
     header: "Date",
     className: "px-4 py-3 text-text-secondary whitespace-nowrap",
-    render: (s) => s.date,
+    render: (s) => formatDate(s.eventDate),
   },
   {
     header: "Time",
     className: "px-4 py-3 text-text-secondary whitespace-nowrap",
-    render: (s) => s.time,
+    render: (s) => formatTimeRange(s.startTime, s.endTime),
   },
   {
     header: "Venue",
     className: "px-4 py-3 text-text-secondary",
-    render: (s) => s.venue,
+    render: (s) => s.location ?? "To be announced",
   },
   {
     header: "Status",
     headerClassName: "text-right",
     className: "px-4 py-3 text-right",
-    render: (s) => (
-      <StatusBadge tone={s.status.tone} icon="check_circle" className="px-2 py-1 rounded">
-        {s.status.label}
+    render: () => (
+      <StatusBadge tone="success" icon="check_circle" className="px-2 py-1 rounded">
+        Confirmed
       </StatusBadge>
     ),
   },
 ];
 
 const LogisticsPage = () => {
-  const [accommodation, setAccommodation] = useState(true);
-  const [projector, setProjector] = useState(true);
-  const [lan, setLan] = useState(false);
+  const { user } = useRole();
+  const { data, isLoading, isError, error, refetch } = useLogistics();
+
+  const saveLogistics = useSaveLogistics();
+  const addMember = useAddVisitingMember();
+  const removeMember = useRemoveVisitingMember();
+
+  // ---- controlled request form (seeded once from the loaded request) ----
+  const [form, setForm] = useState<RequestForm | null>(null);
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    if (!data || hydrated.current) return;
+    hydrated.current = true;
+    setForm(toForm(data.request));
+  }, [data]);
+
+  // ---- add-member inline form ----
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [member, setMember] = useState(EMPTY_MEMBER);
+
+  // ---- save banner ----
+  const [banner, setBanner] = useState<
+    { kind: "success" | "error"; text: string } | null
+  >(null);
+
+  const patch = (next: Partial<RequestForm>) =>
+    setForm((prev) => (prev ? { ...prev, ...next } : prev));
+
+  const submitMember = () => {
+    if (!member.name.trim()) return;
+    addMember.mutate(
+      {
+        name: member.name.trim(),
+        designation: member.designation.trim() || undefined,
+        phone: member.phone.trim() || undefined,
+        email: member.email.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setMember(EMPTY_MEMBER);
+          setShowAddMember(false);
+        },
+      }
+    );
+  };
+
+  const save = () => {
+    if (!form) return;
+    setBanner(null);
+    saveLogistics.mutate(form, {
+      onSuccess: () => setBanner({ kind: "success", text: "Logistics requests saved." }),
+      onError: (err) =>
+        setBanner({
+          kind: "error",
+          text:
+            err instanceof Error
+              ? `Couldn't save — ${err.message}`
+              : "Couldn't save your requests.",
+        }),
+    });
+  };
+
+  // ---------- loading ----------
+  if (isLoading || (!data && !isError)) {
+    return (
+      <>
+        <PortalHeader
+          title="Logistics"
+          subtitle="Coordinate your campus visit details with the placement cell."
+          innerClassName="max-w-container-max mx-auto w-full"
+        />
+        <div className="px-gutter-mobile md:px-gutter-desktop py-8 md:py-10 max-w-container-max mx-auto w-full">
+          <div className="flex flex-col gap-6 animate-pulse">
+            <div className="h-56 rounded-xl bg-surface-variant" />
+            <div className="h-72 rounded-xl bg-surface-variant" />
+            <div className="h-72 rounded-xl bg-surface-variant" />
+            <div className="h-56 rounded-xl bg-surface-variant" />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ---------- error ----------
+  if (isError || !data) {
+    return (
+      <>
+        <PortalHeader
+          title="Logistics"
+          subtitle="Coordinate your campus visit details with the placement cell."
+          innerClassName="max-w-container-max mx-auto w-full"
+        />
+        <div className="px-gutter-mobile md:px-gutter-desktop py-8 md:py-10 max-w-container-max mx-auto w-full">
+          <div className="bg-status-error/10 border border-status-error/20 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <p className="text-body-md font-body-md text-status-error flex items-center gap-2">
+              <span className="material-symbols-outlined text-[20px]">error</span>
+              Couldn&apos;t load your logistics
+              {error instanceof Error ? ` — ${error.message}` : ""}.
+            </p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="px-4 py-2 rounded-lg border border-status-error/30 text-status-error text-label-md font-label-md hover:bg-status-error/10 transition-colors shrink-0 self-start sm:self-auto"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const { team, schedule } = data;
+  // Until the effect seeds it, mirror the loaded request so inputs stay controlled.
+  const f = form ?? toForm(data.request);
+  const accommodation = f.accommodationRequired;
+  const saving = saveLogistics.isPending;
 
   return (
     <>
@@ -196,7 +357,7 @@ const LogisticsPage = () => {
               business_center
             </span>
             <span className="text-label-md font-label-md text-text-primary">
-              TechFlow Solutions Inc.
+              {user?.fullName ?? "Recruiter"}
             </span>
           </div>
         }
@@ -213,6 +374,7 @@ const LogisticsPage = () => {
             action={
               <button
                 type="button"
+                onClick={() => setShowAddMember((v) => !v)}
                 className="inline-flex items-center gap-2 bg-surface-container-lowest border border-surface-border text-text-primary px-4 py-2 rounded-lg text-label-md font-label-md hover:border-primary hover:text-primary transition-colors"
               >
                 <span className="material-symbols-outlined text-[18px]">
@@ -222,17 +384,102 @@ const LogisticsPage = () => {
               </button>
             }
           >
-            <div className="border border-surface-border rounded-xl overflow-hidden">
-              <DataTable
-                columns={TEAM_COLUMNS}
-                rows={VISITING_TEAM}
-                theadClassName="bg-surface-container-low text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
-                thClassName="px-4 py-3 font-semibold text-left"
-                rowClassName={() =>
-                  "border-b border-surface-variant last:border-b-0 hover:bg-surface-container-low transition-colors text-body-md font-body-md"
-                }
-              />
-            </div>
+            {showAddMember && (
+              <div className="mb-5 border border-surface-border rounded-xl p-4 bg-surface-container-low/50">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
+                  <input
+                    className={FORM_INPUT}
+                    placeholder="Full name"
+                    value={member.name}
+                    onChange={(e) => setMember((m) => ({ ...m, name: e.target.value }))}
+                  />
+                  <input
+                    className={FORM_INPUT}
+                    placeholder="Designation"
+                    value={member.designation}
+                    onChange={(e) =>
+                      setMember((m) => ({ ...m, designation: e.target.value }))
+                    }
+                  />
+                  <input
+                    className={FORM_INPUT}
+                    placeholder="Phone"
+                    value={member.phone}
+                    onChange={(e) => setMember((m) => ({ ...m, phone: e.target.value }))}
+                  />
+                  <input
+                    className={FORM_INPUT}
+                    type="email"
+                    placeholder="Email"
+                    value={member.email}
+                    onChange={(e) => setMember((m) => ({ ...m, email: e.target.value }))}
+                  />
+                </div>
+                {addMember.isError && (
+                  <p className="mt-3 text-label-sm font-label-sm text-status-error flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[14px]">error</span>
+                    {addMember.error instanceof Error
+                      ? addMember.error.message
+                      : "Couldn't add member."}
+                  </p>
+                )}
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddMember(false);
+                      setMember(EMPTY_MEMBER);
+                    }}
+                    className="px-4 py-2 rounded-lg border border-surface-border text-text-secondary text-label-md font-label-md hover:bg-surface-container-low transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitMember}
+                    disabled={!member.name.trim() || addMember.isPending}
+                    className="px-4 py-2 rounded-lg btn-gradient text-on-primary text-label-md font-label-md disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">person_add</span>
+                    {addMember.isPending ? "Adding…" : "Add Member"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {team.length === 0 ? (
+              <div className="border border-dashed border-surface-border rounded-xl bg-surface/50 p-8 text-center">
+                <span className="material-symbols-outlined text-[28px] text-text-secondary block mb-2">
+                  groups
+                </span>
+                <p className="text-body-md font-body-md text-text-primary">
+                  No team members added yet
+                </p>
+                <p className="text-label-sm font-label-sm text-text-secondary mt-1">
+                  Add the recruiters and panelists travelling to campus.
+                </p>
+              </div>
+            ) : (
+              <div className="border border-surface-border rounded-xl overflow-hidden">
+                <DataTable
+                  columns={teamColumns(removeMember.mutate, removeMember.isPending)}
+                  rows={team}
+                  theadClassName="bg-surface-container-low text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
+                  thClassName="px-4 py-3 font-semibold text-left"
+                  rowClassName={() =>
+                    "border-b border-surface-variant last:border-b-0 hover:bg-surface-container-low transition-colors text-body-md font-body-md"
+                  }
+                />
+              </div>
+            )}
+            {removeMember.isError && (
+              <p className="mt-3 text-label-sm font-label-sm text-status-error flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px]">error</span>
+                {removeMember.error instanceof Error
+                  ? removeMember.error.message
+                  : "Couldn't remove member."}
+              </p>
+            )}
           </SectionCard>
 
           {/* 3. Hospitality & Dietary Requests */}
@@ -253,7 +500,7 @@ const LogisticsPage = () => {
                 </div>
                 <Toggle
                   on={accommodation}
-                  onChange={setAccommodation}
+                  onChange={(v) => patch({ accommodationRequired: v })}
                   label="Accommodation required"
                 />
               </div>
@@ -268,7 +515,12 @@ const LogisticsPage = () => {
                   type="number"
                   min={0}
                   placeholder="e.g. 3"
-                  defaultValue={3}
+                  value={f.roomsRequired ?? ""}
+                  onChange={(e) =>
+                    patch({
+                      roomsRequired: e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
                   disabled={!accommodation}
                 />
               </div>
@@ -280,7 +532,10 @@ const LogisticsPage = () => {
                 <select
                   className={cn(FORM_INPUT, SELECT_CHEVRON)}
                   id="diet"
-                  defaultValue=""
+                  value={f.dietaryPreference ?? ""}
+                  onChange={(e) =>
+                    patch({ dietaryPreference: e.target.value || null })
+                  }
                 >
                   <option disabled value="">
                     Select preference
@@ -301,7 +556,8 @@ const LogisticsPage = () => {
                   className={FORM_INPUT}
                   id="checkin"
                   type="date"
-                  defaultValue="2026-07-13"
+                  value={toDateInput(f.checkIn)}
+                  onChange={(e) => patch({ checkIn: e.target.value || null })}
                   disabled={!accommodation}
                 />
               </div>
@@ -314,7 +570,8 @@ const LogisticsPage = () => {
                   className={FORM_INPUT}
                   id="checkout"
                   type="date"
-                  defaultValue="2026-07-15"
+                  value={toDateInput(f.checkOut)}
+                  onChange={(e) => patch({ checkOut: e.target.value || null })}
                   disabled={!accommodation}
                 />
               </div>
@@ -328,6 +585,8 @@ const LogisticsPage = () => {
                   id="special_requests"
                   rows={3}
                   placeholder="Airport pickup, early check-in, allergy notes, etc."
+                  value={f.specialRequests ?? ""}
+                  onChange={(e) => patch({ specialRequests: e.target.value || null })}
                 />
               </div>
             </div>
@@ -347,8 +606,12 @@ const LogisticsPage = () => {
                 <select
                   className={cn(FORM_INPUT, SELECT_CHEVRON)}
                   id="venue"
-                  defaultValue={VENUE_OPTIONS[0]}
+                  value={f.venuePreference ?? ""}
+                  onChange={(e) => patch({ venuePreference: e.target.value || null })}
                 >
+                  <option disabled value="">
+                    Select venue
+                  </option>
                   {VENUE_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}
@@ -367,7 +630,13 @@ const LogisticsPage = () => {
                   type="number"
                   min={0}
                   placeholder="e.g. 60"
-                  defaultValue={60}
+                  value={f.systemsRequired ?? ""}
+                  onChange={(e) =>
+                    patch({
+                      systemsRequired:
+                        e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
                 />
               </div>
 
@@ -380,7 +649,11 @@ const LogisticsPage = () => {
                     Projector / AV
                   </span>
                 </div>
-                <Toggle on={projector} onChange={setProjector} label="Projector / AV" />
+                <Toggle
+                  on={f.projectorRequired}
+                  onChange={(v) => patch({ projectorRequired: v })}
+                  label="Projector / AV"
+                />
               </div>
 
               <div className="flex items-center justify-between border border-surface-border rounded-lg px-4 py-3.5 bg-surface-container-low/50">
@@ -392,7 +665,11 @@ const LogisticsPage = () => {
                     Internet / LAN
                   </span>
                 </div>
-                <Toggle on={lan} onChange={setLan} label="Internet / LAN" />
+                <Toggle
+                  on={f.internetRequired}
+                  onChange={(v) => patch({ internetRequired: v })}
+                  label="Internet / LAN"
+                />
               </div>
 
               <div className="relative input-glow md:col-span-2">
@@ -404,6 +681,8 @@ const LogisticsPage = () => {
                   id="tech_notes"
                   rows={3}
                   placeholder="Specific software, OS, network whitelisting, seating layout, etc."
+                  value={f.technicalNotes ?? ""}
+                  onChange={(e) => patch({ technicalNotes: e.target.value || null })}
                 />
               </div>
             </div>
@@ -420,17 +699,32 @@ const LogisticsPage = () => {
               </StatusBadge>
             }
           >
-            <div className="border border-surface-border rounded-xl overflow-hidden">
-              <DataTable
-                columns={SCHEDULE_COLUMNS}
-                rows={FINALISED_SCHEDULE}
-                theadClassName="bg-surface-container-low text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
-                thClassName="px-4 py-3 font-semibold text-left"
-                rowClassName={() =>
-                  "border-b border-surface-variant last:border-b-0 hover:bg-surface-container-low transition-colors text-body-md font-body-md"
-                }
-              />
-            </div>
+            {schedule.length === 0 ? (
+              <div className="border border-dashed border-surface-border rounded-xl bg-surface/50 p-8 text-center">
+                <span className="material-symbols-outlined text-[28px] text-text-secondary block mb-2">
+                  event_busy
+                </span>
+                <p className="text-body-md font-body-md text-text-primary">
+                  No schedule finalised yet
+                </p>
+                <p className="text-label-sm font-label-sm text-text-secondary mt-1">
+                  The placement cell will publish your confirmed campus-visit
+                  slots here.
+                </p>
+              </div>
+            ) : (
+              <div className="border border-surface-border rounded-xl overflow-hidden">
+                <DataTable
+                  columns={SCHEDULE_COLUMNS}
+                  rows={schedule}
+                  theadClassName="bg-surface-container-low text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
+                  thClassName="px-4 py-3 font-semibold text-left"
+                  rowClassName={() =>
+                    "border-b border-surface-variant last:border-b-0 hover:bg-surface-container-low transition-colors text-body-md font-body-md"
+                  }
+                />
+              </div>
+            )}
           </SectionCard>
         </div>
       </div>
@@ -438,24 +732,108 @@ const LogisticsPage = () => {
       {/* Sticky footer action row */}
       <div className="sticky bottom-0 z-20 border-t border-surface-border bg-surface/90 backdrop-blur-md px-gutter-mobile md:px-gutter-desktop py-4">
         <div className="max-w-container-max mx-auto w-full flex flex-wrap items-center justify-end gap-3">
+          {banner && (
+            <p
+              className={cn(
+                "mr-auto flex items-center gap-1.5 text-label-md font-label-md",
+                banner.kind === "success" ? "text-status-success" : "text-status-error"
+              )}
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {banner.kind === "success" ? "check_circle" : "error"}
+              </span>
+              {banner.text}
+            </p>
+          )}
           <button
             type="button"
-            className="px-5 py-2.5 rounded-lg border border-surface-border text-text-primary text-title-md font-title-md hover:bg-surface-container-low hover:border-outline-variant transition-all flex items-center gap-2"
+            onClick={save}
+            disabled={saving}
+            className="px-5 py-2.5 rounded-lg border border-surface-border text-text-primary text-title-md font-title-md hover:bg-surface-container-low hover:border-outline-variant transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <span className="material-symbols-outlined text-[18px]">save</span>
-            Save Draft
+            {saving ? "Saving…" : "Save Draft"}
           </button>
           <button
             type="button"
-            className="btn-gradient text-on-primary text-title-md font-title-md px-7 py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+            onClick={save}
+            disabled={saving}
+            className="btn-gradient text-on-primary text-title-md font-title-md px-7 py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <span className="material-symbols-outlined text-[18px]">send</span>
-            Submit Requests
+            {saving ? "Submitting…" : "Submit Requests"}
           </button>
         </div>
       </div>
     </>
   );
 };
+
+/** Visiting-team columns, parameterised by the remove mutation. */
+function teamColumns(
+  remove: (id: string) => void,
+  removing: boolean
+): Column<VisitingMemberApi>[] {
+  return [
+    {
+      header: "Member",
+      className: "px-4 py-3",
+      render: (m, i) => (
+        <div className="flex items-center gap-3">
+          <div
+            className={cn(
+              "w-9 h-9 rounded-full flex items-center justify-center text-label-sm font-label-sm font-semibold shrink-0",
+              AVATAR_TONES[i % AVATAR_TONES.length]
+            )}
+          >
+            {initialsOf(m.name)}
+          </div>
+          <span className="font-medium text-text-primary">{m.name}</span>
+        </div>
+      ),
+    },
+    {
+      header: "Designation",
+      className: "px-4 py-3 text-text-secondary",
+      render: (m) => m.designation ?? "—",
+    },
+    {
+      header: "Phone",
+      className: "px-4 py-3 text-text-secondary whitespace-nowrap",
+      render: (m) => m.phone ?? "—",
+    },
+    {
+      header: "Email",
+      className: "px-4 py-3 text-text-secondary",
+      render: (m) =>
+        m.email ? (
+          <a
+            href={`mailto:${m.email}`}
+            className="text-primary hover:text-navy-vibrant hover:underline transition-colors"
+          >
+            {m.email}
+          </a>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      header: "",
+      headerClassName: "text-right",
+      className: "px-4 py-3 text-right",
+      render: (m) => (
+        <button
+          type="button"
+          onClick={() => remove(m.id)}
+          disabled={removing}
+          aria-label={`Remove ${m.name}`}
+          className="inline-flex items-center justify-center w-8 h-8 rounded-full text-text-secondary hover:text-status-error hover:bg-status-error/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span className="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      ),
+    },
+  ];
+}
 
 export default LogisticsPage;

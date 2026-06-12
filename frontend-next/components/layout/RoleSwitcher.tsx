@@ -12,9 +12,15 @@ import { ROLES, ROLE_META, DEFAULT_DASHBOARD, type Role } from "@/lib/roles";
  * sidebar + route guards can be demoed. Remove once real auth lands.
  */
 const RoleSwitcher = () => {
-  const { role, setRole } = useRole();
+  const { role, setRole, sessionStatus } = useRole();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  // Mock login only: hidden in production builds and whenever a real session
+  // exists (the account's role wins — switching locally would just desync).
+  if (process.env.NODE_ENV === "production" || sessionStatus === "authed") {
+    return null;
+  }
 
   const choose = (next: Role) => {
     setRole(next);

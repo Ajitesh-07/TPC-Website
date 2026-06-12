@@ -2,21 +2,34 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
   ROLE_COOKIE,
+  SESSION_COOKIE,
   DEFAULT_ROLE,
   isRole,
+  isPortalRoute,
   canAccess,
   DEFAULT_DASHBOARD,
 } from "@/lib/roles";
 
 // Next.js 16 renamed the `middleware` convention to `proxy` (Node.js runtime).
-// Gate portal routes by the mock role cookie: a role visiting a page it isn't
-// allowed to see is bounced to its own dashboard. Replace the cookie read with
-// the authenticated session role once real auth exists.
+// Two gates on portal routes:
+//   1. No session cookie  -> guest, redirect to the landing page to sign in.
+//   2. Wrong role for the route -> bounce to that role's own dashboard.
+// The API independently enforces real session validity + authz on every call;
+// this is UX routing only.
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // 1. A portal route with no session = guest. Send them to sign in.
+  if (isPortalRoute(pathname) && !request.cookies.get(SESSION_COOKIE)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.hash = "portal-access";
+    return NextResponse.redirect(url);
+  }
+
+  // 2. Role-based route guard (role hint from the readable cookie).
   const raw = request.cookies.get(ROLE_COOKIE)?.value;
   const role = isRole(raw) ? raw : DEFAULT_ROLE;
-
   if (!canAccess(role, pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = DEFAULT_DASHBOARD[role];

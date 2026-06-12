@@ -1,23 +1,63 @@
-import PortalHeader from "@/components/ui/PortalHeader";
-import StatusBadge from "@/components/ui/StatusBadge";
-import DataTable, { type Column } from "@/components/ui/DataTable";
-import { STUDENT_DIRECTORY, type DirectoryStudent } from "@/data/profiles";
+"use client";
 
-const COLUMNS: Column<DirectoryStudent>[] = [
+import { useEffect, useState } from "react";
+import PortalHeader from "@/components/ui/PortalHeader";
+import StatusBadge, { type BadgeTone } from "@/components/ui/StatusBadge";
+import DataTable, { type Column } from "@/components/ui/DataTable";
+import { useStudents } from "@/lib/hooks";
+import type { DirectoryStudentRow } from "@/lib/api-types";
+
+const PAGE_SIZE = 20;
+
+// ---------- local mappers (API → display) ----------
+
+/** "Aarav Sharma" → "AS". */
+function initials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const first = parts[0].charAt(0);
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : parts[0].charAt(1);
+  return (first + (last ?? "")).toUpperCase();
+}
+
+/** "higher_studies" → "Higher Studies". */
+function titleCase(value: string): string {
+  return value
+    .split("_")
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+/** Composite directory status: blocked wins; otherwise placementStatus. */
+function studentStatus(s: DirectoryStudentRow): { label: string; tone: BadgeTone } {
+  if (s.isBlocked) return { label: "Restricted", tone: "error" };
+  switch (s.placementStatus) {
+    case "placed":
+      return { label: "Placed", tone: "success" };
+    case "unplaced":
+      return { label: "Unplaced", tone: "neutral" };
+    case "higher_studies":
+      return { label: "Higher Studies", tone: "info" };
+    default:
+      return { label: titleCase(s.placementStatus), tone: "neutral" };
+  }
+}
+
+const COLUMNS: Column<DirectoryStudentRow>[] = [
   {
     header: "Student",
     className: "px-4 py-3",
     render: (s) => (
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-full bg-primary-fixed text-primary flex items-center justify-center text-label-md font-label-md font-bold shrink-0">
-          {s.initials}
+          {initials(s.fullName)}
         </div>
         <div className="min-w-0">
           <div className="text-body-md font-body-md font-semibold text-text-primary truncate">
-            {s.name}
+            {s.fullName}
           </div>
           <div className="text-label-sm font-label-sm text-text-secondary uppercase tracking-wider">
-            {s.roll}
+            {s.rollNo}
           </div>
         </div>
       </div>
@@ -26,12 +66,12 @@ const COLUMNS: Column<DirectoryStudent>[] = [
   {
     header: "Branch",
     className: "px-4 py-3 text-text-secondary",
-    render: (s) => s.branch,
+    render: (s) => s.branch?.code ?? "—",
   },
   {
     header: "CGPA",
     className: "px-4 py-3 text-text-secondary",
-    render: (s) => s.cgpa,
+    render: (s) => (s.cpi != null ? s.cpi.toFixed(2) : "—"),
   },
   {
     header: "Email",
@@ -42,11 +82,14 @@ const COLUMNS: Column<DirectoryStudent>[] = [
   {
     header: "Status",
     className: "px-4 py-3",
-    render: (s) => (
-      <StatusBadge tone={s.status.tone} className="px-2 py-1 rounded">
-        {s.status.label}
-      </StatusBadge>
-    ),
+    render: (s) => {
+      const status = studentStatus(s);
+      return (
+        <StatusBadge tone={status.tone} className="px-2 py-1 rounded">
+          {status.label}
+        </StatusBadge>
+      );
+    },
   },
   {
     header: "Action",
@@ -65,6 +108,30 @@ const COLUMNS: Column<DirectoryStudent>[] = [
 ];
 
 const StudentProfiles = () => {
+  const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
+  // Debounce the search box → server-side `search` param.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(query.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const { data, isLoading, isError, error, refetch, isFetching } = useStudents({
+    search,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+
+  const students = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(page * PAGE_SIZE, total);
+
   return (
     <>
       <PortalHeader
@@ -79,6 +146,8 @@ const StudentProfiles = () => {
             </span>
             <input
               type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name or roll number"
               className="bg-transparent text-body-md text-text-primary placeholder:text-text-secondary focus:outline-none w-full"
             />
@@ -92,20 +161,79 @@ const StudentProfiles = () => {
             <h2 className="text-title-md font-title-md text-text-primary">
               All Students
               <span className="ml-2 text-label-sm font-label-sm text-text-secondary">
-                {STUDENT_DIRECTORY.length} total
+                {isLoading ? "…" : `${total} total`}
               </span>
             </h2>
           </div>
-          <DataTable
-            columns={COLUMNS}
-            rows={STUDENT_DIRECTORY}
-            className="min-w-[640px]"
-            theadClassName="bg-surface-container-low text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
-            thClassName="px-4 py-3 font-semibold"
-            rowClassName={() =>
-              "border-b border-surface-variant last:border-b-0 hover:bg-surface-container-low transition-colors text-body-md font-body-md"
-            }
-          />
+
+          {isLoading ? (
+            <div className="p-5 space-y-3 animate-pulse">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-12 rounded-lg bg-surface-variant" />
+              ))}
+            </div>
+          ) : isError ? (
+            <div className="p-5 flex items-center gap-3">
+              <span className="material-symbols-outlined text-status-error text-[20px]">
+                error
+              </span>
+              <p className="flex-1 text-body-md font-body-md text-status-error">
+                Couldn&rsquo;t load the student directory.
+                {error instanceof Error ? ` ${error.message}` : ""}
+              </p>
+              <button
+                onClick={() => refetch()}
+                className="shrink-0 px-3 py-1.5 rounded-lg border border-status-error/30 text-status-error text-label-md font-label-md hover:bg-status-error/10 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          ) : students.length === 0 ? (
+            <div className="text-center py-20 text-text-secondary">
+              <span className="material-symbols-outlined text-[48px] mb-2 opacity-50">
+                person_search
+              </span>
+              <p className="text-title-md font-title-md">
+                {search
+                  ? "No students match your search"
+                  : "No students registered yet"}
+              </p>
+            </div>
+          ) : (
+            <>
+              <DataTable
+                columns={COLUMNS}
+                rows={students}
+                className="min-w-[640px]"
+                theadClassName="bg-surface-container-low text-label-sm font-label-sm text-text-secondary uppercase tracking-wider"
+                thClassName="px-4 py-3 font-semibold"
+                rowClassName={() =>
+                  "border-b border-surface-variant last:border-b-0 hover:bg-surface-container-low transition-colors text-body-md font-body-md"
+                }
+              />
+              <div className="p-4 border-t border-surface-border flex items-center justify-between bg-surface-bright">
+                <span className="text-label-sm font-label-sm text-text-secondary">
+                  Showing {from}&ndash;{to} of {total}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1 || isFetching}
+                    className="px-3 py-1.5 rounded-lg border border-surface-border text-label-md font-label-md text-text-secondary hover:bg-surface-container-low transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={to >= total || isFetching}
+                    className="px-3 py-1.5 rounded-lg border border-surface-border text-label-md font-label-md text-text-secondary hover:bg-surface-container-low transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>
