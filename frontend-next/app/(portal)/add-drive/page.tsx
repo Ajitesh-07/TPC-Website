@@ -132,7 +132,9 @@ const AddDriveForm = () => {
                     step
                   )}
                 </div>
-                <span className={textClass(step)}>{label}</span>
+                <span className={cn(textClass(step), "hidden sm:block")}>
+                  {label}
+                </span>
               </li>
             );
           })}
@@ -653,14 +655,14 @@ const AddDriveForm = () => {
                 </p>
               </div>
 
-              <div className="mt-8 flex justify-between">
+              <div className="mt-8 flex flex-wrap justify-between gap-3">
                 <button className={BACK_BUTTON} onClick={back} type="button">
                   <span className="material-symbols-outlined text-[20px]">
                     arrow_back
                   </span>
                   Back
                 </button>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <button
                     className="px-5 py-3 rounded-lg border border-surface-border text-text-primary text-title-md font-title-md hover:bg-surface-container-low hover:border-outline-variant transition-all duration-200 flex items-center gap-2"
                     type="button"

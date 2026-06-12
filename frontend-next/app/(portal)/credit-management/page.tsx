@@ -191,15 +191,15 @@ const CreditManagement = () => {
       <div className="flex-1 px-gutter-mobile md:px-gutter-desktop py-8 max-w-container-max mx-auto w-full animate-fadeIn">
         {/* Filter controls */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-text-secondary text-[20px]">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="material-symbols-outlined text-text-secondary text-[20px] shrink-0">
               filter_list
             </span>
-            <label className="text-label-md font-label-md text-text-secondary">Reason</label>
+            <label className="text-label-md font-label-md text-text-secondary shrink-0">Reason</label>
             <select
               value={reasonFilter}
               onChange={(e) => setReasonFilter(e.target.value)}
-              className="bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+              className="w-full sm:w-auto bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary cursor-pointer"
             >
               <option>All reasons</option>
               {CREDIT_REASONS.map((r) => (
@@ -210,12 +210,12 @@ const CreditManagement = () => {
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-label-md font-label-md text-text-secondary">Credit status</label>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label className="text-label-md font-label-md text-text-secondary shrink-0">Credit status</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary cursor-pointer"
+              className="w-full sm:w-auto bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-on-surface focus:outline-none focus:border-primary cursor-pointer"
             >
               <option value="All">All</option>
               <option value="Healthy">Healthy</option>

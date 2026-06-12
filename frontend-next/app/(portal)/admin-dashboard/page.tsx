@@ -39,9 +39,9 @@ const AdminDashboard = () => {
             <p className="text-body-md font-body-md text-text-secondary">
               {ADMIN_PROFILE.department}
             </p>
-            <p className="text-label-sm font-label-sm text-text-secondary mt-1 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[16px]">mail</span>
-              {ADMIN_PROFILE.email}
+            <p className="text-label-sm font-label-sm text-text-secondary mt-1 flex items-center gap-1 min-w-0">
+              <span className="material-symbols-outlined text-[16px] shrink-0">mail</span>
+              <span className="truncate">{ADMIN_PROFILE.email}</span>
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

@@ -59,7 +59,7 @@ const CoordinatorDashboard = () => {
         innerClassName="max-w-container-max mx-auto md:flex-row md:items-end"
         titleClassName="text-headline-lg-mobile md:text-headline-lg font-headline-lg-mobile md:font-headline-lg"
         actions={
-          <>
+          <div className="flex flex-wrap items-center gap-3">
             <button className="bg-surface-container-lowest border border-surface-border text-text-secondary px-4 py-2 rounded-lg text-label-md font-label-md shadow-sm hover:border-primary transition-colors flex items-center gap-2">
               <span className="material-symbols-outlined">download</span>
               Export Report
@@ -68,7 +68,7 @@ const CoordinatorDashboard = () => {
               <span className="material-symbols-outlined">add</span>
               Create Drive
             </button>
-          </>
+          </div>
         }
       />
 

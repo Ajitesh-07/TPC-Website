@@ -28,7 +28,7 @@ const Hero = () => {
         <span className="inline-block py-1 px-3 rounded-full bg-surface-container/20 text-on-primary text-label-sm font-label-sm border border-white/10 mb-6 backdrop-blur-md">
           Training &amp; Placement Cell &middot; IIT Patna
         </span>
-        <h1 className="text-display-lg font-display-lg text-on-primary mb-6 max-w-4xl tracking-tight leading-tight">
+        <h1 className="text-headline-lg-mobile md:text-display-lg font-display-lg text-on-primary mb-6 max-w-4xl tracking-tight leading-tight">
           Empowering Innovation,
           <br />
           Engineering the Future.

@@ -283,7 +283,7 @@ const DriveWorkspace = () => {
                             {STAGE_LABEL[status]}
                           </StatusBadge>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                           <button
                             onClick={() => setStage(i, "completed")}
                             disabled={status === "completed"}

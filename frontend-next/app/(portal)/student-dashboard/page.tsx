@@ -45,7 +45,7 @@ const StudentDashboard = () => {
       <PortalHeader
         title="Overview"
         subtitle="Manage your placement journey and track progress."
-        className="bg-background/80 px-gutter-desktop"
+        className="bg-background/80 px-gutter-mobile md:px-gutter-desktop"
         innerClassName="flex-row items-center"
         actions={
           <>
@@ -74,7 +74,7 @@ const StudentDashboard = () => {
       />
 
       {/* Dashboard content */}
-      <div className="p-gutter-desktop max-w-container-max mx-auto space-y-6">
+      <div className="p-gutter-mobile md:p-gutter-desktop max-w-container-max mx-auto space-y-6">
         {/* Restriction / Clearance Banner */}
         {STUDENT.restricted ? (
           <div className="rounded-xl border border-status-error/20 bg-status-error/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

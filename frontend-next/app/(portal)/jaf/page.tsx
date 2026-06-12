@@ -38,10 +38,11 @@ const JobAnnouncementForm = () => {
   };
 
   const textClass = (step: number) => {
-    if (step < currentStep) return "text-label-md font-label-md text-surface-tint";
+    if (step < currentStep)
+      return "text-label-sm md:text-label-md font-label-md text-surface-tint text-center whitespace-nowrap";
     if (step === currentStep)
-      return "text-label-md font-label-md text-primary font-bold";
-    return "text-label-md font-label-md text-text-secondary";
+      return "text-label-sm md:text-label-md font-label-md text-primary font-bold text-center whitespace-nowrap";
+    return "text-label-sm md:text-label-md font-label-md text-text-secondary text-center whitespace-nowrap";
   };
 
   return (
@@ -120,13 +121,16 @@ const JobAnnouncementForm = () => {
             {STATUS_STAGES[DRIVE_STATUS_INDEX]}
           </span>
         </div>
-        <div className="flex items-center">
+        <div className="flex items-center overflow-x-auto no-scrollbar -mx-1 px-1 md:mx-0 md:px-0 md:overflow-visible">
           {STATUS_STAGES.map((stage, i) => {
             const done = i < DRIVE_STATUS_INDEX;
             const current = i === DRIVE_STATUS_INDEX;
             return (
-              <div key={stage} className="flex items-center flex-1 last:flex-none">
-                <div className="flex flex-col items-center gap-2 shrink-0">
+              <div
+                key={stage}
+                className="flex items-center shrink-0 md:shrink md:flex-1 md:last:flex-none"
+              >
+                <div className="flex flex-col items-center gap-2 shrink-0 w-[5.5rem] md:w-auto">
                   <div
                     className={
                       done
@@ -145,8 +149,8 @@ const JobAnnouncementForm = () => {
                   <span
                     className={
                       current
-                        ? "text-label-sm font-label-sm text-text-primary font-bold text-center max-w-[7rem]"
-                        : "text-label-sm font-label-sm text-text-secondary text-center max-w-[7rem]"
+                        ? "text-label-sm font-label-sm text-text-primary font-bold text-center max-w-[5.5rem] md:max-w-[7rem]"
+                        : "text-label-sm font-label-sm text-text-secondary text-center max-w-[5.5rem] md:max-w-[7rem]"
                     }
                   >
                     {stage}
@@ -154,7 +158,7 @@ const JobAnnouncementForm = () => {
                 </div>
                 {i < STATUS_STAGES.length - 1 && (
                   <div
-                    className={`h-[2px] flex-1 mx-2 -mt-6 ${
+                    className={`h-[2px] w-6 md:w-auto md:flex-1 mx-1 md:mx-2 -mt-6 shrink-0 ${
                       done ? "bg-primary" : "bg-surface-border"
                     }`}
                   />

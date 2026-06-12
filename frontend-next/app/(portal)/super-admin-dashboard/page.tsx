@@ -82,8 +82,8 @@ const SuperAdminDashboard = () => {
             Admin &amp; Credit Management Overview
           </p>
         </div>
-        <div className="flex gap-3">
-          <div className="relative">
+        <div className="flex gap-3 w-full md:w-auto">
+          <div className="relative grow md:grow-0">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-[18px]">
               search
             </span>

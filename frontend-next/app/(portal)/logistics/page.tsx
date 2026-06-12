@@ -437,7 +437,7 @@ const LogisticsPage = () => {
 
       {/* Sticky footer action row */}
       <div className="sticky bottom-0 z-20 border-t border-surface-border bg-surface/90 backdrop-blur-md px-gutter-mobile md:px-gutter-desktop py-4">
-        <div className="max-w-container-max mx-auto w-full flex items-center justify-end gap-3">
+        <div className="max-w-container-max mx-auto w-full flex flex-wrap items-center justify-end gap-3">
           <button
             type="button"
             className="px-5 py-2.5 rounded-lg border border-surface-border text-text-primary text-title-md font-title-md hover:bg-surface-container-low hover:border-outline-variant transition-all flex items-center gap-2"

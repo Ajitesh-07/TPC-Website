@@ -358,7 +358,7 @@ const GlobalExportPage = () => {
                   className="flex flex-col md:flex-row md:items-center gap-3 p-4 rounded-lg border border-surface-border bg-surface-container-low"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                       <span className="text-body-md font-body-md text-text-primary font-medium">
                         {c.student}
                       </span>
@@ -407,7 +407,7 @@ const GlobalExportPage = () => {
                 Administer profiles, block access, and review placement status.
               </p>
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
               <div className="relative w-full sm:w-64">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
                   search

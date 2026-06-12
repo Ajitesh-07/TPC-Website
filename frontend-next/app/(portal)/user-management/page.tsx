@@ -192,13 +192,13 @@ const UserManagement = () => {
       {/* Content */}
       <div className="flex-1 px-gutter-mobile md:px-gutter-desktop py-8 max-w-container-max mx-auto w-full">
         {/* Tab toggle */}
-        <div className="bg-surface-container-low p-1 rounded-xl inline-flex flex-wrap mb-8">
+        <div className="bg-surface-container-low p-1 rounded-xl flex overflow-x-auto no-scrollbar mb-8">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "flex items-center gap-2 px-5 py-2 rounded-lg text-title-md font-title-md transition-all",
+                "flex items-center gap-2 px-5 py-2 rounded-lg text-title-md font-title-md transition-all whitespace-nowrap shrink-0",
                 activeTab === tab.key
                   ? "bg-surface shadow-sm text-primary"
                   : "text-text-secondary hover:text-on-surface"

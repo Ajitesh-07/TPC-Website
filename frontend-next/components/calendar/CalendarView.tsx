@@ -204,7 +204,7 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
     <div className="p-gutter-mobile md:p-gutter-desktop flex-1">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Calendar grid */}
-        <section className="lg:col-span-7 xl:col-span-8 bg-surface-container-lowest rounded-xl soft-shadow border border-surface-border p-6">
+        <section className="lg:col-span-7 xl:col-span-8 bg-surface-container-lowest rounded-xl soft-shadow border border-surface-border p-4 sm:p-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-title-lg font-title-lg text-text-primary">
               {MONTH_NAMES[month]} {year}
@@ -227,7 +227,7 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-2 text-center mb-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center mb-2">
             {WEEKDAYS.map((d) => (
               <div key={d} className="text-label-sm font-label-sm text-text-secondary uppercase">
                 {d}
@@ -235,7 +235,7 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {cells.map((day, i) => {
               if (day === null) return <div key={`blank-${i}`} className="aspect-square" />;
               const dayEvents = eventsByDay.get(day) ?? [];
@@ -356,7 +356,7 @@ const CalendarView = ({ initialEvents, defaultMonth }: CalendarViewProps) => {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAdd(false)}></div>
           <form
             onSubmit={handleAdd}
-            className="relative z-10 bg-surface-container-lowest rounded-xl border border-surface-border w-full max-w-md elevation-2 p-6 space-y-4"
+            className="relative z-10 bg-surface-container-lowest rounded-xl border border-surface-border w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar elevation-2 p-6 space-y-4"
           >
             <div className="flex justify-between items-center">
               <h3 className="text-title-lg font-title-lg text-text-primary">Add Personal Event</h3>

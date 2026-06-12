@@ -435,7 +435,7 @@ const ManageCompanies = () => {
                   <select
                     value={companyFilter}
                     onChange={(e) => setCompanyFilter(e.target.value)}
-                    className="bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                    className="min-w-0 flex-1 sm:flex-none bg-surface-container-lowest border border-surface-border rounded-lg px-3 py-2 text-body-md font-body-md text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                   >
                     <option value="all">All Companies</option>
                     {companies.map((company) => (
@@ -446,7 +446,7 @@ const ManageCompanies = () => {
                   </select>
                   <button
                     onClick={() => exportResponsesCsv(visibleResponses)}
-                    className="flex items-center gap-1 text-label-md font-label-md px-3 py-2 border border-surface-border rounded-lg bg-white hover:bg-surface-container-low transition-colors text-text-secondary"
+                    className="shrink-0 flex items-center gap-1 text-label-md font-label-md px-3 py-2 border border-surface-border rounded-lg bg-white hover:bg-surface-container-low transition-colors text-text-secondary"
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       download
