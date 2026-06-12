@@ -1,0 +1,1068 @@
+// Source of truth for the TPC database — use `prisma migrate`, do NOT also run schema.sql.
+// updated_at columns are handled by Prisma @updatedAt (the SQL updated_at triggers are dropped).
+// The credit-ledger trigger (students.credit_balance) is NOT representable in Prisma —
+// add it back via a manual SQL migration, or do it in CreditsService.
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, citext]
+}
+
+// ============================================================================
+// Enums
+// ============================================================================
+
+enum UserRole {
+  student
+  company
+  coordinator
+  admin
+  super_admin
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  active
+  revoked
+  pending
+
+  @@map("user_status")
+}
+
+enum PlacementStatus {
+  unplaced
+  placed
+  higher_studies
+  opted_out
+  debarred
+
+  @@map("placement_status")
+}
+
+enum DriveProcessType {
+  internship
+  six_month_fte
+  six_month_ppo
+  fte
+
+  @@map("drive_process_type")
+}
+
+enum DriveStatus {
+  draft
+  pending_approval
+  open
+  closed
+  completed
+  cancelled
+
+  @@map("drive_status")
+}
+
+enum StageType {
+  registration
+  ppt
+  online_assessment
+  group_discussion
+  shortlisting
+  interview
+  offer
+
+  @@map("stage_type")
+}
+
+enum StageStatus {
+  upcoming
+  ongoing
+  completed
+  skipped
+
+  @@map("stage_status")
+}
+
+enum ApplicationStatus {
+  applied
+  under_review
+  shortlisted
+  interview
+  offered
+  accepted
+  rejected
+  withdrawn
+
+  @@map("application_status")
+}
+
+enum EventType {
+  ppt
+  oa
+  interview
+  deadline
+  result
+  other
+
+  @@map("event_type")
+}
+
+enum EventScope {
+  global
+  branch
+  drive
+  personal
+
+  @@map("event_scope")
+}
+
+enum ContactChannel {
+  email
+  call
+  visit
+  other
+
+  @@map("contact_channel")
+}
+
+enum CorrectionStatus {
+  pending
+  approved
+  rejected
+
+  @@map("correction_status")
+}
+
+enum RegistrationStatus {
+  open
+  closed
+  pending
+
+  @@map("registration_status")
+}
+
+enum DocumentType {
+  jd
+  result_sheet
+  instruction
+  offer_letter
+  other
+
+  @@map("document_type")
+}
+
+enum AuditAction {
+  data_edit
+  export
+  role_change
+  login
+  logout
+  policy
+  approval
+  credit_adjustment
+  upload
+  other
+
+  @@map("audit_action")
+}
+
+enum ApprovedEmailKind {
+  exact
+  domain
+
+  @@map("approved_email_kind")
+}
+
+enum NotificationCategory {
+  drive
+  status
+  deadline
+  schedule
+  profile
+  system
+
+  @@map("notification_category")
+}
+
+enum FormKind {
+  registration
+  application
+  custom
+
+  @@map("form_kind")
+}
+
+enum FormStatus {
+  draft
+  open
+  closed
+
+  @@map("form_status")
+}
+
+enum FormFieldType {
+  short_text
+  long_text
+  number
+  single_select
+  multi_select
+  date
+  time
+  file
+
+  @@map("form_field_type")
+}
+
+// ============================================================================
+// Reference / lookup tables
+// ============================================================================
+
+model PlacementSeason {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String    @unique
+  startsOn  DateTime? @map("starts_on") @db.Date
+  endsOn    DateTime? @map("ends_on") @db.Date
+  isActive  Boolean   @default(false) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  drives                Drive[]
+  creditTransactions    CreditTransaction[]
+  events                Event[]
+  forms                 Form[]
+  companyRegistrations  CompanyRegistration[]
+  logisticsRequests     LogisticsRequest[]
+
+  @@map("placement_seasons")
+}
+
+model Program {
+  id            String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code          String @unique
+  name          String
+  durationYears Int?   @map("duration_years") @db.SmallInt
+
+  students               Student[]
+  driveEligiblePrograms  DriveEligibleProgram[]
+
+  @@map("programs")
+}
+
+model Branch {
+  id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code String @unique
+  name String
+
+  students                       Student[]
+  driveEligibleBranches          DriveEligibleBranch[]
+  eventBranches                  EventBranch[]
+  registrationEligibleBranches   RegistrationEligibleBranch[]
+
+  @@map("branches")
+}
+
+model Skill {
+  id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name String @unique
+
+  studentSkills StudentSkill[]
+  driveSkills   DriveSkill[]
+
+  @@map("skills")
+}
+
+// ============================================================================
+// Identity & access
+// ============================================================================
+
+model User {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String     @unique @db.Citext
+  role         UserRole
+  status       UserStatus @default(active)
+  fullName     String     @map("full_name")
+  authProvider String?    @map("auth_provider")
+  externalId   String?    @map("external_id")
+  lastLoginAt  DateTime?  @map("last_login_at") @db.Timestamptz(6)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student     Student?
+  recruiter   Recruiter?
+  coordinator Coordinator?
+
+  companyContactLogs           CompanyContactLog[]          @relation("ContactLogRecordedBy")
+  drivesCreated                Drive[]                      @relation("DriveCreatedBy")
+  drivesApproved               Drive[]                      @relation("DriveApprovedBy")
+  driveDocumentsUploaded       DriveDocument[]              @relation("DriveDocumentUploadedBy")
+  applicationStatusChanges     ApplicationStatusHistory[]   @relation("ApplicationStatusChangedBy")
+  creditTransactionsCreated    CreditTransaction[]          @relation("CreditTransactionCreatedBy")
+  dataCorrectionReviews        DataCorrectionRequest[]      @relation("DataCorrectionReviewedBy")
+  eventsOwned                  Event[]                      @relation("EventOwner")
+  eventsCreated                Event[]                      @relation("EventCreatedBy")
+  formsCreated                 Form[]                       @relation("FormCreatedBy")
+  formResponses                FormResponse[]               @relation("FormResponseRespondent")
+  companyRegistrationsCreated  CompanyRegistration[]        @relation("CompanyRegistrationCreatedBy")
+  approvedEmailsAdded          ApprovedEmail[]              @relation("ApprovedEmailAddedBy")
+  masterDataUploads            MasterDataUpload[]           @relation("MasterDataUploadedBy")
+  auditLogs                    AuditLog[]                   @relation("AuditActor")
+  notifications                Notification[]
+  notificationPreferences      NotificationPreference[]
+  loginTokens                  LoginToken[]
+
+  @@unique([authProvider, externalId])
+  @@index([role], map: "idx_users_role")
+  @@map("users")
+}
+
+/// One-time email login tokens (magic link / OTP) for recruiters, who have no
+/// institute SSO account. We store only the SHA-256 hash of the token.
+model LoginToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  purpose   String    @default("recruiter_login")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_login_tokens_user")
+  @@map("login_tokens")
+}
+
+model Student {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String          @unique @map("user_id") @db.Uuid
+  rollNo            String          @unique @map("roll_no")
+  programId         String?         @map("program_id") @db.Uuid
+  branchId          String?         @map("branch_id") @db.Uuid
+  batchYear         Int?            @map("batch_year") @db.SmallInt
+  cpi               Decimal?        @db.Decimal(4, 2)
+  activeBacklogs    Int             @default(0) @map("active_backlogs") @db.SmallInt
+  btechVerified     Boolean         @default(false) @map("btech_verified")
+  emailVerified     Boolean         @default(false) @map("email_verified")
+  placementStatus   PlacementStatus @default(unplaced) @map("placement_status")
+  isBlocked         Boolean         @default(false) @map("is_blocked")
+  blockedReason     String?         @map("blocked_reason")
+  creditBalance     Int             @default(0) @map("credit_balance")
+  phone             String?
+  altEmail          String?         @map("alt_email") @db.Citext
+  resumeUrl         String?         @map("resume_url")
+  linkedinUrl       String?         @map("linkedin_url")
+  githubUrl         String?         @map("github_url")
+  preferredLocation String?         @map("preferred_location")
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program? @relation(fields: [programId], references: [id])
+  branch  Branch?  @relation(fields: [branchId], references: [id])
+
+  studentSkills           StudentSkill[]
+  applications            Application[]
+  driveEligibility        DriveEligibility[]
+  creditTransactions      CreditTransaction[]
+  dataCorrectionRequests  DataCorrectionRequest[]
+  formResponses           FormResponse[]
+
+  @@index([branchId], map: "idx_students_branch")
+  @@index([placementStatus], map: "idx_students_placement")
+  @@map("students")
+}
+
+model StudentSkill {
+  studentId String @map("student_id") @db.Uuid
+  skillId   String @map("skill_id") @db.Uuid
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, skillId])
+  @@index([skillId], map: "idx_student_skills_skill")
+  @@map("student_skills")
+}
+
+model Company {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  slug        String?  @unique
+  website     String?
+  industry    String?
+  logoUrl     String?  @map("logo_url")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  recruiters            Recruiter[]
+  companyPocs           CompanyPoc[]
+  companyContactLogs    CompanyContactLog[]
+  drives                Drive[]
+  forms                 Form[]
+  companyRegistrations  CompanyRegistration[]
+  logisticsRequests     LogisticsRequest[]
+
+  @@map("companies")
+}
+
+model Recruiter {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  designation String?
+  phone       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId], map: "idx_recruiters_company")
+  @@map("recruiters")
+}
+
+model Coordinator {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @unique @map("user_id") @db.Uuid
+  department String?
+  phone      String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coordinatorAssignments  CoordinatorAssignment[]
+
+  @@map("coordinators")
+}
+
+// ============================================================================
+// Companies — points of contact & contact log
+// ============================================================================
+
+model CompanyPoc {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  name        String
+  designation String?
+  phone       String?
+  email       String?  @db.Citext
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId], map: "idx_company_pocs_company")
+  @@map("company_pocs")
+}
+
+model CompanyContactLog {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String         @map("company_id") @db.Uuid
+  contactName String         @map("contact_name")
+  designation String?
+  channel     ContactChannel @default(email)
+  note        String?
+  contactedOn DateTime       @map("contacted_on") @db.Date
+  recordedBy  String?        @map("recorded_by") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recordedByUser User?  @relation("ContactLogRecordedBy", fields: [recordedBy], references: [id], onDelete: SetNull)
+
+  @@index([companyId, contactedOn(sort: Desc)], map: "idx_contactlog_company_date")
+  @@map("company_contact_log")
+}
+
+// ============================================================================
+// Drives / Job Announcements
+// ============================================================================
+
+model Drive {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seasonId            String           @map("season_id") @db.Uuid
+  companyId           String           @map("company_id") @db.Uuid
+  createdBy           String?          @map("created_by") @db.Uuid
+  title               String
+  description         String?
+  processType         DriveProcessType @map("process_type")
+  location            String?
+  ctcLpa              Decimal?         @map("ctc_lpa") @db.Decimal(7, 2)
+  stipendPerMonth     Decimal?         @map("stipend_per_month") @db.Decimal(10, 2)
+  minCpi              Decimal?         @map("min_cpi") @db.Decimal(4, 2)
+  allowBacklog        Boolean          @default(false) @map("allow_backlog")
+  customRules         String?          @map("custom_rules")
+  status              DriveStatus      @default(draft)
+  applicationDeadline DateTime?        @map("application_deadline") @db.Timestamptz(6)
+  approvedBy          String?          @map("approved_by") @db.Uuid
+  approvedAt          DateTime?        @map("approved_at") @db.Timestamptz(6)
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  season         PlacementSeason @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  createdByUser  User?           @relation("DriveCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  approvedByUser User?           @relation("DriveApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
+
+  driveEligibleBranches  DriveEligibleBranch[]
+  driveEligiblePrograms  DriveEligibleProgram[]
+  driveSkills            DriveSkill[]
+  driveStages            DriveStage[]
+  driveDocuments         DriveDocument[]
+  applications           Application[]
+  driveEligibility       DriveEligibility[]
+  events                 Event[]
+  forms                  Form[]
+  logisticsRequests      LogisticsRequest[]
+  coordinatorAssignments CoordinatorAssignment[]
+
+  @@index([seasonId], map: "idx_drives_season")
+  @@index([companyId], map: "idx_drives_company")
+  @@index([status], map: "idx_drives_status")
+  @@map("drives")
+}
+
+model DriveEligibleBranch {
+  driveId  String @map("drive_id") @db.Uuid
+  branchId String @map("branch_id") @db.Uuid
+
+  drive  Drive  @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([driveId, branchId])
+  @@map("drive_eligible_branches")
+}
+
+model DriveEligibleProgram {
+  driveId   String @map("drive_id") @db.Uuid
+  programId String @map("program_id") @db.Uuid
+
+  drive   Drive   @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@id([driveId, programId])
+  @@map("drive_eligible_programs")
+}
+
+model DriveSkill {
+  driveId String @map("drive_id") @db.Uuid
+  skillId String @map("skill_id") @db.Uuid
+
+  drive Drive @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([driveId, skillId])
+  @@map("drive_skills")
+}
+
+model DriveStage {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  driveId     String      @map("drive_id") @db.Uuid
+  type        StageType
+  label       String?
+  sequence    Int         @db.SmallInt
+  status      StageStatus @default(upcoming)
+  scheduledAt DateTime?   @map("scheduled_at") @db.Timestamptz(6)
+  location    String?
+
+  drive Drive @relation(fields: [driveId], references: [id], onDelete: Cascade)
+
+  applications Application[] @relation("ApplicationCurrentStage")
+
+  @@unique([driveId, sequence])
+  @@index([driveId], map: "idx_drive_stages_drive")
+  @@map("drive_stages")
+}
+
+model DriveDocument {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  driveId    String       @map("drive_id") @db.Uuid
+  type       DocumentType
+  name       String
+  fileUrl    String       @map("file_url")
+  uploadedBy String?      @map("uploaded_by") @db.Uuid
+  uploadedAt DateTime     @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+
+  drive          Drive @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  uploadedByUser User? @relation("DriveDocumentUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([driveId], map: "idx_drive_docs_drive")
+  @@map("drive_documents")
+}
+
+// ============================================================================
+// Applications, status history, offers
+// ============================================================================
+
+model Application {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  driveId        String            @map("drive_id") @db.Uuid
+  studentId      String            @map("student_id") @db.Uuid
+  status         ApplicationStatus @default(applied)
+  isShortlisted  Boolean           @default(false) @map("is_shortlisted")
+  currentStageId String?           @map("current_stage_id") @db.Uuid
+  formResponseId String?           @map("form_response_id") @db.Uuid
+  appliedAt      DateTime          @default(now()) @map("applied_at") @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  drive        Drive         @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  currentStage DriveStage?   @relation("ApplicationCurrentStage", fields: [currentStageId], references: [id], onDelete: SetNull)
+  formResponse FormResponse? @relation("ApplicationFormResponse", fields: [formResponseId], references: [id], onDelete: SetNull)
+
+  applicationStatusHistory ApplicationStatusHistory[]
+  offer                    Offer?
+
+  @@unique([driveId, studentId])
+  @@index([driveId], map: "idx_applications_drive")
+  @@index([studentId], map: "idx_applications_student")
+  @@index([status], map: "idx_applications_status")
+  @@map("applications")
+}
+
+model ApplicationStatusHistory {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId String            @map("application_id") @db.Uuid
+  status        ApplicationStatus
+  note          String?
+  changedBy     String?           @map("changed_by") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedByUser User?       @relation("ApplicationStatusChangedBy", fields: [changedBy], references: [id], onDelete: SetNull)
+
+  @@index([applicationId], map: "idx_appstatus_application")
+  @@map("application_status_history")
+}
+
+model Offer {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId String            @unique @map("application_id") @db.Uuid
+  roleTitle     String?           @map("role_title")
+  offerType     DriveProcessType? @map("offer_type")
+  ctcLpa        Decimal?          @map("ctc_lpa") @db.Decimal(7, 2)
+  offeredAt     DateTime          @default(now()) @map("offered_at") @db.Timestamptz(6)
+  accepted      Boolean?
+  respondedAt   DateTime?         @map("responded_at") @db.Timestamptz(6)
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@map("offers")
+}
+
+// ============================================================================
+// Drive eligibility cache
+// ============================================================================
+
+model DriveEligibility {
+  driveId    String   @map("drive_id") @db.Uuid
+  studentId  String   @map("student_id") @db.Uuid
+  isEligible Boolean  @map("is_eligible")
+  reasons    String[]
+  computedAt DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+
+  drive   Drive   @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([driveId, studentId])
+  @@index([studentId], map: "idx_drive_eligibility_student")
+  @@map("drive_eligibility")
+}
+
+// ============================================================================
+// Credits — append-only ledger
+// ============================================================================
+
+model CreditTransaction {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId    String   @map("student_id") @db.Uuid
+  seasonId     String?  @map("season_id") @db.Uuid
+  delta        Int
+  balanceAfter Int?     @map("balance_after")
+  reason       String
+  createdBy    String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  student       Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  season        PlacementSeason? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  createdByUser User?            @relation("CreditTransactionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt(sort: Desc)], map: "idx_credit_tx_student")
+  @@map("credit_transactions")
+}
+
+// ============================================================================
+// Data correction requests
+// ============================================================================
+
+model DataCorrectionRequest {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId      String           @map("student_id") @db.Uuid
+  fieldName      String           @map("field_name")
+  currentValue   String?          @map("current_value")
+  requestedValue String?          @map("requested_value")
+  reason         String?
+  status         CorrectionStatus @default(pending)
+  reviewedBy     String?          @map("reviewed_by") @db.Uuid
+  reviewedAt     DateTime?        @map("reviewed_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  student        Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reviewedByUser User?   @relation("DataCorrectionReviewedBy", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([studentId], map: "idx_correction_student")
+  @@index([status], map: "idx_correction_status")
+  @@map("data_correction_requests")
+}
+
+// ============================================================================
+// Calendar / events
+// ============================================================================
+
+model Event {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seasonId    String?    @map("season_id") @db.Uuid
+  type        EventType
+  scope       EventScope @default(global)
+  title       String
+  detail      String?
+  eventDate   DateTime   @map("event_date") @db.Date
+  startTime   DateTime?  @map("start_time") @db.Time(6)
+  endTime     DateTime?  @map("end_time") @db.Time(6)
+  location    String?
+  driveId     String?    @map("drive_id") @db.Uuid
+  ownerUserId String?    @map("owner_user_id") @db.Uuid
+  createdBy   String?    @map("created_by") @db.Uuid
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  season        PlacementSeason? @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  drive         Drive?           @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  ownerUser     User?            @relation("EventOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  createdByUser User?            @relation("EventCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  eventBranches EventBranch[]
+
+  @@index([seasonId, eventDate], map: "idx_events_season_date")
+  @@index([driveId], map: "idx_events_drive")
+  @@index([ownerUserId], map: "idx_events_owner")
+  @@map("events")
+}
+
+model EventBranch {
+  eventId  String @map("event_id") @db.Uuid
+  branchId String @map("branch_id") @db.Uuid
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, branchId])
+  @@map("event_branches")
+}
+
+// ============================================================================
+// Forms engine
+// ============================================================================
+
+model Form {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind          FormKind   @default(custom)
+  title         String
+  description   String?
+  status        FormStatus @default(draft)
+  seasonId      String?    @map("season_id") @db.Uuid
+  companyId     String?    @map("company_id") @db.Uuid
+  driveId       String?    @map("drive_id") @db.Uuid
+  createdBy     String?    @map("created_by") @db.Uuid
+  opensAt       DateTime?  @map("opens_at") @db.Timestamptz(6)
+  closesAt      DateTime?  @map("closes_at") @db.Timestamptz(6)
+  allowMultiple Boolean    @default(false) @map("allow_multiple")
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  season        PlacementSeason? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  company       Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  drive         Drive?           @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  createdByUser User?            @relation("FormCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  formFields            FormField[]
+  formResponses         FormResponse[]
+  companyRegistrations  CompanyRegistration[]
+
+  @@index([companyId], map: "idx_forms_company")
+  @@index([driveId], map: "idx_forms_drive")
+  @@map("forms")
+}
+
+model FormField {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formId     String        @map("form_id") @db.Uuid
+  label      String
+  helpText   String?       @map("help_text")
+  type       FormFieldType
+  isRequired Boolean       @default(false) @map("is_required")
+  position   Int           @db.SmallInt
+  config     Json          @default(dbgenerated("'{}'::jsonb"))
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  formFieldOptions FormFieldOption[]
+  formAnswers      FormAnswer[]
+
+  @@unique([formId, position])
+  @@index([formId], map: "idx_form_fields_form")
+  @@map("form_fields")
+}
+
+model FormFieldOption {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fieldId  String  @map("field_id") @db.Uuid
+  label    String
+  value    String?
+  position Int     @db.SmallInt
+
+  field FormField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  formAnswersSelected FormAnswer[]         @relation("FormAnswerSelectedOption")
+  formAnswerOptions   FormAnswerOption[]
+
+  @@unique([fieldId, position])
+  @@map("form_field_options")
+}
+
+model FormResponse {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  formId       String   @map("form_id") @db.Uuid
+  studentId    String?  @map("student_id") @db.Uuid
+  respondentId String?  @map("respondent_id") @db.Uuid
+  submittedAt  DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+
+  form           Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  student        Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  respondentUser User?    @relation("FormResponseRespondent", fields: [respondentId], references: [id], onDelete: SetNull)
+
+  formAnswers  FormAnswer[]
+  applications Application[] @relation("ApplicationFormResponse")
+
+  @@index([formId], map: "idx_form_responses_form")
+  @@index([studentId], map: "idx_form_responses_student")
+  @@map("form_responses")
+}
+
+model FormAnswer {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  responseId       String    @map("response_id") @db.Uuid
+  fieldId          String    @map("field_id") @db.Uuid
+  valueText        String?   @map("value_text")
+  valueNumber      Decimal?  @map("value_number") @db.Decimal
+  valueDate        DateTime? @map("value_date") @db.Date
+  valueTime        DateTime? @map("value_time") @db.Time(6)
+  fileUrl          String?   @map("file_url")
+  selectedOptionId String?   @map("selected_option_id") @db.Uuid
+
+  response       FormResponse     @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  field          FormField        @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  selectedOption FormFieldOption? @relation("FormAnswerSelectedOption", fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  formAnswerOptions FormAnswerOption[]
+
+  @@unique([responseId, fieldId])
+  @@index([responseId], map: "idx_form_answers_response")
+  @@map("form_answers")
+}
+
+model FormAnswerOption {
+  answerId String @map("answer_id") @db.Uuid
+  optionId String @map("option_id") @db.Uuid
+
+  answer FormAnswer      @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  option FormFieldOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@id([answerId, optionId])
+  @@map("form_answer_options")
+}
+
+// ============================================================================
+// Company registration for a season
+// ============================================================================
+
+model CompanyRegistration {
+  id                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seasonId             String             @map("season_id") @db.Uuid
+  companyId            String?            @map("company_id") @db.Uuid
+  companyName          String             @map("company_name")
+  industry             String?
+  processType          DriveProcessType?  @map("process_type")
+  minCpi               Decimal?           @map("min_cpi") @db.Decimal(4, 2)
+  registrationDeadline DateTime?          @map("registration_deadline") @db.Date
+  status               RegistrationStatus @default(open)
+  formId               String?            @map("form_id") @db.Uuid
+  createdBy            String?            @map("created_by") @db.Uuid
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  season        PlacementSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  company       Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  form          Form?           @relation(fields: [formId], references: [id], onDelete: SetNull)
+  createdByUser User?           @relation("CompanyRegistrationCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  registrationEligibleBranches RegistrationEligibleBranch[]
+
+  @@index([formId], map: "idx_company_registrations_form")
+  @@map("company_registrations")
+}
+
+model RegistrationEligibleBranch {
+  registrationId String @map("registration_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  registration CompanyRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([registrationId, branchId])
+  @@map("registration_eligible_branches")
+}
+
+// ============================================================================
+// Logistics
+// ============================================================================
+
+model LogisticsRequest {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  driveId               String?   @map("drive_id") @db.Uuid
+  companyId             String    @map("company_id") @db.Uuid
+  seasonId              String?   @map("season_id") @db.Uuid
+  accommodationRequired Boolean   @default(false) @map("accommodation_required")
+  roomsRequired         Int?      @map("rooms_required") @db.SmallInt
+  checkIn               DateTime? @map("check_in") @db.Date
+  checkOut              DateTime? @map("check_out") @db.Date
+  dietaryPreference     String?   @map("dietary_preference")
+  specialRequests       String?   @map("special_requests")
+  venuePreference       String?   @map("venue_preference")
+  systemsRequired       Int?      @map("systems_required") @db.SmallInt
+  projectorRequired     Boolean   @default(false) @map("projector_required")
+  internetRequired      Boolean   @default(false) @map("internet_required")
+  technicalNotes        String?   @map("technical_notes")
+  status                String    @default("draft")
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  drive   Drive?           @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  season  PlacementSeason? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+
+  visitingTeamMembers VisitingTeamMember[]
+
+  @@map("logistics_requests")
+}
+
+model VisitingTeamMember {
+  id                 String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  logisticsRequestId String  @map("logistics_request_id") @db.Uuid
+  name               String
+  designation        String?
+  phone              String?
+  email              String? @db.Citext
+
+  logisticsRequest LogisticsRequest @relation(fields: [logisticsRequestId], references: [id], onDelete: Cascade)
+
+  @@map("visiting_team_members")
+}
+
+// ============================================================================
+// Coordinator assignments
+// ============================================================================
+
+model CoordinatorAssignment {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coordinatorId String   @map("coordinator_id") @db.Uuid
+  driveId       String   @map("drive_id") @db.Uuid
+  assignedAt    DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  coordinator Coordinator @relation(fields: [coordinatorId], references: [id], onDelete: Cascade)
+  drive       Drive       @relation(fields: [driveId], references: [id], onDelete: Cascade)
+
+  @@unique([coordinatorId, driveId])
+  @@index([coordinatorId], map: "idx_coord_assign_coordinator")
+  @@index([driveId], map: "idx_coord_assign_drive")
+  @@map("coordinator_assignments")
+}
+
+// ============================================================================
+// Super-admin: access control, approved emails, master data, audit log
+// ============================================================================
+
+model ApprovedEmail {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind      ApprovedEmailKind @default(exact)
+  value     String            @unique @db.Citext
+  roleHint  UserRole?         @map("role_hint")
+  addedBy   String?           @map("added_by") @db.Uuid
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  addedByUser User? @relation("ApprovedEmailAddedBy", fields: [addedBy], references: [id], onDelete: SetNull)
+
+  @@map("approved_emails")
+}
+
+model MasterDataUpload {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fileName   String   @map("file_name")
+  kind       String?
+  rowCount   Int?     @map("row_count")
+  status     String   @default("processed")
+  uploadedBy String?  @map("uploaded_by") @db.Uuid
+  uploadedAt DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+
+  uploadedByUser User? @relation("MasterDataUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@map("master_data_uploads")
+}
+
+model AuditLog {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId     String?     @map("actor_id") @db.Uuid
+  actorRole   UserRole?   @map("actor_role")
+  action      AuditAction
+  targetTable String?     @map("target_table")
+  targetId    String?     @map("target_id") @db.Uuid
+  targetLabel String?     @map("target_label")
+  details     String?
+  ipAddress   String?     @map("ip_address") @db.Inet
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt(sort: Desc)], map: "idx_audit_actor_time")
+  @@index([action, createdAt(sort: Desc)], map: "idx_audit_action_time")
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// Notifications
+// ============================================================================
+
+model Notification {
+  id        String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String               @map("user_id") @db.Uuid
+  category  NotificationCategory
+  title     String
+  message   String?
+  link      String?
+  isRead    Boolean              @default(false) @map("is_read")
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt(sort: Desc)], map: "idx_notifications_user_unread")
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userId   String               @map("user_id") @db.Uuid
+  category NotificationCategory
+  enabled  Boolean              @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, category])
+  @@map("notification_preferences")
+}

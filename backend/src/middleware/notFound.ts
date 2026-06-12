@@ -1,9 +1,11 @@
-import type { Request, Response } from "express";
+import type { FastifyInstance } from "fastify";
 
-/** Catch-all for unmatched routes — returns a consistent 404 JSON shape. */
-export function notFound(req: Request, res: Response): void {
-  res.status(404).json({
-    error: "Not Found",
-    message: `Cannot ${req.method} ${req.originalUrl}`,
+/** Consistent 404 JSON shape for unmatched routes. */
+export function registerNotFound(app: FastifyInstance) {
+  app.setNotFoundHandler((req, reply) => {
+    reply.status(404).send({
+      error: "not_found",
+      message: `Cannot ${req.method} ${req.url}`,
+    });
   });
 }

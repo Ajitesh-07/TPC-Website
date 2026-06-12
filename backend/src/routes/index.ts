@@ -1,18 +1,20 @@
-import { Router } from "express";
-import { healthRouter } from "./health.routes";
+import type { FastifyInstance } from "fastify";
+import { healthRoutes } from "./health.routes";
+import { userRoutes } from "../modules/users/routes";
+import { driveRoutes } from "../modules/drives/routes";
 
 /**
- * Root API router. Mount feature routers here as the platform grows
- * (e.g. students, companies, drives, applications).
+ * Root API plugin (mounted under /api). Register feature modules here as the
+ * platform grows (students, companies, applications, forms, ...).
  */
-export const apiRouter = Router();
-
-apiRouter.get("/", (_req, res) => {
-  res.json({
+export async function apiRoutes(app: FastifyInstance) {
+  app.get("/", async () => ({
     name: "CCDC / TPC API",
     version: "0.1.0",
-    docs: "See /api/health for service status.",
-  });
-});
+    docs: "/docs",
+  }));
 
-apiRouter.use("/health", healthRouter);
+  await app.register(healthRoutes);
+  await app.register(userRoutes);
+  await app.register(driveRoutes);
+}

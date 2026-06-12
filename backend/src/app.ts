@@ -1,34 +1,52 @@
-import express, { type Application } from "express";
-import cors from "cors";
-import helmet from "helmet";
-import morgan from "morgan";
+import Fastify, { type FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
+import cookie from "@fastify/cookie";
+import jwt from "@fastify/jwt";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
+import rateLimit from "@fastify/rate-limit";
+import {
+  serializerCompiler,
+  validatorCompiler,
+  jsonSchemaTransform,
+} from "fastify-type-provider-zod";
 
 import { env, isProduction } from "./config/env";
-import { apiRouter } from "./routes";
-import { notFound } from "./middleware/notFound";
-import { errorHandler } from "./middleware/errorHandler";
+import { redis } from "./lib/redis";
+import { registerErrorHandler } from "./middleware/errorHandler";
+import { registerNotFound } from "./middleware/notFound";
+import { authRoutes } from "./auth/routes";
+import { apiRoutes } from "./routes";
 
-/** Builds and configures the Express application (no network side-effects). */
-export function createApp(): Application {
-  const app = express();
+/** Build and configure the Fastify app (no network side-effects). */
+export async function createApp(): Promise<FastifyInstance> {
+  const app = Fastify({
+    logger: isProduction ? true : { transport: { target: "pino-pretty" } },
+  });
 
-  // Security headers + CORS for the frontend origin(s).
-  app.use(helmet());
-  app.use(cors({ origin: env.corsOrigins, credentials: true }));
+  // Use zod for validation + OpenAPI generation.
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
-  // Request logging — concise in production, verbose in development.
-  app.use(morgan(isProduction ? "combined" : "dev"));
+  await app.register(cors, { origin: env.corsOrigins, credentials: true });
+  await app.register(cookie, { secret: env.cookieSecret });
+  await app.register(jwt, {
+    secret: env.jwtSecret,
+    cookie: { cookieName: env.sessionCookie, signed: false },
+  });
+  await app.register(rateLimit, { max: 100, timeWindow: "1 minute", redis });
 
-  // Body parsing.
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  await app.register(swagger, {
+    openapi: { info: { title: "CCDC / TPC API", version: "0.1.0" } },
+    transform: jsonSchemaTransform,
+  });
+  await app.register(swaggerUi, { routePrefix: "/docs" });
 
-  // Routes.
-  app.use("/api", apiRouter);
+  registerErrorHandler(app);
+  registerNotFound(app);
 
-  // 404 + centralised error handling (must be registered last).
-  app.use(notFound);
-  app.use(errorHandler);
+  await app.register(authRoutes); // /auth/*
+  await app.register(apiRoutes, { prefix: "/api" });
 
   return app;
 }

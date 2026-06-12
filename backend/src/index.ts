@@ -1,20 +1,23 @@
 import { createApp } from "./app";
 import { env } from "./config/env";
 
-const app = createApp();
+async function main() {
+  const app = await createApp();
+  await app.listen({ port: env.port, host: "0.0.0.0" });
+  app.log.info(
+    `🚀 CCDC API on http://localhost:${env.port} (${env.nodeEnv}) — docs at /docs`
+  );
 
-const server = app.listen(env.port, () => {
-  console.log(`🚀 CCDC API listening on http://localhost:${env.port} (${env.nodeEnv})`);
-});
-
-// Graceful shutdown.
-const shutdown = (signal: string) => {
-  console.log(`\n${signal} received — shutting down gracefully...`);
-  server.close(() => {
-    console.log("HTTP server closed.");
+  const shutdown = async (signal: string) => {
+    app.log.info(`${signal} received — shutting down...`);
+    await app.close();
     process.exit(0);
-  });
-};
+  };
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+}
 
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

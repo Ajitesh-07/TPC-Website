@@ -1,14 +1,12 @@
-import { Router } from "express";
+import type { FastifyInstance } from "fastify";
 import { env } from "../config/env";
 
-export const healthRouter = Router();
-
 /** Liveness/readiness probe. */
-healthRouter.get("/", (_req, res) => {
-  res.json({
+export async function healthRoutes(app: FastifyInstance) {
+  app.get("/health", async () => ({
     status: "ok",
     uptime: process.uptime(),
     environment: env.nodeEnv,
     timestamp: new Date().toISOString(),
-  });
-});
+  }));
+}
