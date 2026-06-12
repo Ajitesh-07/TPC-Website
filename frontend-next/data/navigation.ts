@@ -59,6 +59,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
   { label: "My Profile", icon: "person", href: "/my-profile", roles: ["student"] },
 
   // Company
+  { label: "My Drives", icon: "work", href: "/company-drives", roles: ["company"] },
   { label: "Job Announcement", icon: "post_add", href: "/jaf", roles: ["company"] },
   { label: "Logistics", icon: "local_shipping", href: "/logistics", roles: ["company"] },
 

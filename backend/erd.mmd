@@ -1,0 +1,301 @@
+%% IIT Patna CCDC / TPC — Entity Relationship Diagram
+%% Render: VS Code "Markdown Preview Mermaid" / mermaid.live / GitHub
+%% Mirrors backend/schema.sql. Cardinality: || one, o{ zero-or-many, o| zero-or-one.
+
+erDiagram
+    %% ---- Identity & access ----
+    USERS {
+        uuid id PK
+        citext email UK
+        user_role role
+        user_status status
+        text full_name
+    }
+    STUDENTS {
+        uuid id PK
+        uuid user_id FK
+        text roll_no UK
+        uuid program_id FK
+        uuid branch_id FK
+        numeric cpi
+        placement_status placement_status
+        boolean is_blocked
+        integer credit_balance
+    }
+    RECRUITERS {
+        uuid id PK
+        uuid user_id FK
+        uuid company_id FK
+    }
+    COORDINATORS {
+        uuid id PK
+        uuid user_id FK
+    }
+    COMPANIES {
+        uuid id PK
+        text name
+        text industry
+    }
+
+    %% ---- Lookups ----
+    PLACEMENT_SEASONS { uuid id PK
+        text name UK
+        boolean is_active
+    }
+    PROGRAMS  { uuid id PK
+        text code UK
+    }
+    BRANCHES  { uuid id PK
+        text code UK
+    }
+    SKILLS    { uuid id PK
+        text name UK
+    }
+
+    %% ---- Drives ----
+    DRIVES {
+        uuid id PK
+        uuid season_id FK
+        uuid company_id FK
+        drive_process_type process_type
+        drive_status status
+        numeric min_cpi
+        timestamptz application_deadline
+    }
+    DRIVE_STAGES {
+        uuid id PK
+        uuid drive_id FK
+        stage_type type
+        stage_status status
+    }
+    DRIVE_DOCUMENTS { uuid id PK
+        uuid drive_id FK
+        document_type type
+    }
+    DRIVE_ELIGIBLE_BRANCHES { uuid drive_id FK
+        uuid branch_id FK
+    }
+    DRIVE_ELIGIBLE_PROGRAMS { uuid drive_id FK
+        uuid program_id FK
+    }
+    DRIVE_SKILLS { uuid drive_id FK
+        uuid skill_id FK
+    }
+    DRIVE_ELIGIBILITY {
+        uuid drive_id FK
+        uuid student_id FK
+        boolean is_eligible
+    }
+
+    %% ---- Applications ----
+    APPLICATIONS {
+        uuid id PK
+        uuid drive_id FK
+        uuid student_id FK
+        application_status status
+        uuid form_response_id FK
+    }
+    APPLICATION_STATUS_HISTORY { uuid id PK
+        uuid application_id FK
+        application_status status
+    }
+    OFFERS { uuid id PK
+        uuid application_id FK
+        numeric ctc_lpa
+    }
+
+    %% ---- Credits / corrections ----
+    CREDIT_TRANSACTIONS {
+        uuid id PK
+        uuid student_id FK
+        integer delta
+        text reason
+    }
+    DATA_CORRECTION_REQUESTS {
+        uuid id PK
+        uuid student_id FK
+        text field_name
+        correction_status status
+    }
+    STUDENT_SKILLS { uuid student_id FK
+        uuid skill_id FK
+    }
+
+    %% ---- Calendar ----
+    EVENTS {
+        uuid id PK
+        uuid season_id FK
+        event_type type
+        event_scope scope
+        uuid drive_id FK
+        uuid owner_user_id FK
+    }
+    EVENT_BRANCHES { uuid event_id FK
+        uuid branch_id FK
+    }
+
+    %% ---- Forms engine ----
+    FORMS {
+        uuid id PK
+        form_kind kind
+        form_status status
+        uuid company_id FK
+        uuid drive_id FK
+    }
+    FORM_FIELDS {
+        uuid id PK
+        uuid form_id FK
+        form_field_type type
+        smallint position
+    }
+    FORM_FIELD_OPTIONS { uuid id PK
+        uuid field_id FK
+    }
+    FORM_RESPONSES {
+        uuid id PK
+        uuid form_id FK
+        uuid student_id FK
+    }
+    FORM_ANSWERS {
+        uuid id PK
+        uuid response_id FK
+        uuid field_id FK
+        uuid selected_option_id FK
+    }
+    FORM_ANSWER_OPTIONS { uuid answer_id FK
+        uuid option_id FK
+    }
+
+    %% ---- Company registration ----
+    COMPANY_REGISTRATIONS {
+        uuid id PK
+        uuid season_id FK
+        uuid company_id FK
+        uuid form_id FK
+    }
+    REGISTRATION_ELIGIBLE_BRANCHES { uuid registration_id FK
+        uuid branch_id FK
+    }
+
+    %% ---- Company contacts ----
+    COMPANY_POCS { uuid id PK
+        uuid company_id FK
+    }
+    COMPANY_CONTACT_LOG {
+        uuid id PK
+        uuid company_id FK
+        contact_channel channel
+        date contacted_on
+    }
+
+    %% ---- Logistics ----
+    LOGISTICS_REQUESTS {
+        uuid id PK
+        uuid company_id FK
+        uuid drive_id FK
+    }
+    VISITING_TEAM_MEMBERS { uuid id PK
+        uuid logistics_request_id FK
+    }
+
+    %% ---- Coordinator ownership ----
+    COORDINATOR_ASSIGNMENTS {
+        uuid id PK
+        uuid coordinator_id FK
+        uuid drive_id FK
+    }
+
+    %% ---- Super-admin / governance ----
+    APPROVED_EMAILS { uuid id PK
+        citext value UK
+        approved_email_kind kind
+    }
+    MASTER_DATA_UPLOADS { uuid id PK
+        uuid uploaded_by FK
+    }
+    AUDIT_LOGS {
+        uuid id PK
+        uuid actor_id FK
+        audit_action action
+    }
+    NOTIFICATIONS { uuid id PK
+        uuid user_id FK
+        notification_category category
+    }
+    NOTIFICATION_PREFERENCES { uuid user_id FK
+        notification_category category
+    }
+
+    %% ===================== RELATIONSHIPS =====================
+    USERS ||--o| STUDENTS         : "is"
+    USERS ||--o| RECRUITERS       : "is"
+    USERS ||--o| COORDINATORS     : "is"
+    COMPANIES ||--o{ RECRUITERS   : employs
+
+    PROGRAMS ||--o{ STUDENTS      : programme
+    BRANCHES ||--o{ STUDENTS      : branch
+    STUDENTS ||--o{ STUDENT_SKILLS : has
+    SKILLS   ||--o{ STUDENT_SKILLS : tagged
+
+    PLACEMENT_SEASONS ||--o{ DRIVES : season
+    COMPANIES ||--o{ DRIVES       : runs
+    USERS ||--o{ DRIVES           : "created by"
+
+    DRIVES ||--o{ DRIVE_STAGES           : pipeline
+    DRIVES ||--o{ DRIVE_DOCUMENTS        : docs
+    DRIVES ||--o{ DRIVE_ELIGIBLE_BRANCHES : branches
+    BRANCHES ||--o{ DRIVE_ELIGIBLE_BRANCHES : ""
+    DRIVES ||--o{ DRIVE_ELIGIBLE_PROGRAMS : programs
+    PROGRAMS ||--o{ DRIVE_ELIGIBLE_PROGRAMS : ""
+    DRIVES ||--o{ DRIVE_SKILLS    : skills
+    SKILLS ||--o{ DRIVE_SKILLS    : ""
+    DRIVES ||--o{ DRIVE_ELIGIBILITY : "eligibility cache"
+    STUDENTS ||--o{ DRIVE_ELIGIBILITY : ""
+
+    DRIVES ||--o{ APPLICATIONS    : receives
+    STUDENTS ||--o{ APPLICATIONS  : submits
+    APPLICATIONS ||--o{ APPLICATION_STATUS_HISTORY : history
+    APPLICATIONS ||--o| OFFERS    : "may yield"
+    DRIVE_STAGES ||--o{ APPLICATIONS : "current stage"
+
+    STUDENTS ||--o{ CREDIT_TRANSACTIONS : ledger
+    STUDENTS ||--o{ DATA_CORRECTION_REQUESTS : requests
+
+    PLACEMENT_SEASONS ||--o{ EVENTS : season
+    DRIVES ||--o{ EVENTS          : "drive event"
+    USERS ||--o{ EVENTS           : "personal owner"
+    EVENTS ||--o{ EVENT_BRANCHES  : targets
+    BRANCHES ||--o{ EVENT_BRANCHES : ""
+
+    COMPANIES ||--o{ FORMS        : owns
+    DRIVES ||--o{ FORMS           : "app questionnaire"
+    FORMS ||--o{ FORM_FIELDS      : has
+    FORM_FIELDS ||--o{ FORM_FIELD_OPTIONS : choices
+    FORMS ||--o{ FORM_RESPONSES   : collects
+    STUDENTS ||--o{ FORM_RESPONSES : fills
+    FORM_RESPONSES ||--o{ FORM_ANSWERS : contains
+    FORM_FIELDS ||--o{ FORM_ANSWERS : answered
+    FORM_ANSWERS ||--o{ FORM_ANSWER_OPTIONS : "multi-select"
+    FORM_FIELD_OPTIONS ||--o{ FORM_ANSWER_OPTIONS : ""
+    FORM_RESPONSES ||--o| APPLICATIONS : "links to"
+
+    PLACEMENT_SEASONS ||--o{ COMPANY_REGISTRATIONS : season
+    COMPANIES ||--o{ COMPANY_REGISTRATIONS : about
+    FORMS ||--o| COMPANY_REGISTRATIONS : questionnaire
+    COMPANY_REGISTRATIONS ||--o{ REGISTRATION_ELIGIBLE_BRANCHES : branches
+    BRANCHES ||--o{ REGISTRATION_ELIGIBLE_BRANCHES : ""
+
+    COMPANIES ||--o{ COMPANY_POCS : contacts
+    COMPANIES ||--o{ COMPANY_CONTACT_LOG : "contact log"
+
+    COMPANIES ||--o{ LOGISTICS_REQUESTS : visit
+    DRIVES ||--o| LOGISTICS_REQUESTS : ""
+    LOGISTICS_REQUESTS ||--o{ VISITING_TEAM_MEMBERS : team
+
+    COORDINATORS ||--o{ COORDINATOR_ASSIGNMENTS : owns
+    DRIVES ||--o{ COORDINATOR_ASSIGNMENTS : "owned by"
+
+    USERS ||--o{ MASTER_DATA_UPLOADS : uploads
+    USERS ||--o{ AUDIT_LOGS       : acts
+    USERS ||--o{ NOTIFICATIONS    : receives
+    USERS ||--o{ NOTIFICATION_PREFERENCES : prefers

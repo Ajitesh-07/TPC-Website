@@ -53,8 +53,28 @@ const PortalAccess = () => {
             </p>
           </div>
 
-          {/* Staff role logins */}
+          {/* Recruiter + staff role logins */}
           <div className="lg:col-span-5 flex flex-col gap-4">
+            {/* Company recruiter login */}
+            <button
+              type="button"
+              onClick={() => enterAs("company")}
+              className="bg-surface-container-lowest rounded-xl p-5 flex items-center gap-4 hover:bg-white/90 transition-colors duration-200 group text-left elevation-1"
+            >
+              <IconTile icon="business_center" size="sm" />
+              <div className="grow">
+                <div className="text-title-md font-title-md text-primary">
+                  Recruiter
+                </div>
+                <div className="text-label-sm font-label-sm text-text-secondary uppercase tracking-wider">
+                  Company access
+                </div>
+              </div>
+              <span className="material-symbols-outlined text-text-secondary group-hover:translate-x-1 transition-transform">
+                arrow_forward
+              </span>
+            </button>
+
             {STAFF_ROLES.map((staff) => (
               <button
                 key={staff.label}

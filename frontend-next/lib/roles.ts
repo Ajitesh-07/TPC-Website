@@ -71,6 +71,7 @@ export const ROUTE_ACCESS: RouteRule[] = [
 
   // Company
   { prefix: "/company-dashboard", roles: ["company"] },
+  { prefix: "/company-drives", roles: ["company"] },
   { prefix: "/jaf", roles: ["company", "coordinator", "admin", "super-admin"] },
   { prefix: "/logistics", roles: ["company"] },
 

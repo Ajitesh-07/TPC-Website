@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Timeline, TimelineItem } from "@/components/ui/Timeline";
 import {
   COMPANY_ITINERARY,
@@ -116,12 +117,15 @@ const CompanyDashboard = () => {
                 upload_file
               </span>
             </button>
-            <button className="w-full bg-transparent hover:bg-white/5 border border-transparent hover:border-white/10 text-primary-fixed-dim py-2 px-4 rounded-lg flex items-center justify-between transition-colors text-label-md font-label-md">
+            <Link
+              href="/company-drives"
+              className="w-full bg-transparent hover:bg-white/5 border border-transparent hover:border-white/10 text-primary-fixed-dim py-2 px-4 rounded-lg flex items-center justify-between transition-colors text-label-md font-label-md"
+            >
               <span>View Active JDs</span>
               <span className="material-symbols-outlined text-[18px]">
                 arrow_forward
               </span>
-            </button>
+            </Link>
           </div>
         </div>
       </section>
